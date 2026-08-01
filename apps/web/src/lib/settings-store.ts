@@ -1,4 +1,4 @@
-export type ProviderPreference = 'openrouter' | 'ollama' | 'openai' | 'custom';
+export type ProviderPreference = 'openrouter' | 'ollama' | 'openai' | 'google' | 'custom';
 
 export interface OmniDevSettings {
   openRouterKey: string;
@@ -7,6 +7,8 @@ export interface OmniDevSettings {
   ollamaModel: string;
   activeProvider: ProviderPreference;
   openaiKey: string;
+  googleApiKey: string;
+  googleModel: string;
   customBaseURL: string;
   customModel: string;
   customKey: string;
@@ -22,6 +24,8 @@ export const DEFAULT_SETTINGS: OmniDevSettings = {
   ollamaModel: 'llama3.1',
   activeProvider: 'openrouter',
   openaiKey: '',
+  googleApiKey: '',
+  googleModel: 'gemini-2.0-flash',
   customBaseURL: '',
   customModel: '',
   customKey: '',
@@ -51,14 +55,43 @@ export function saveSettings(settings: Partial<OmniDevSettings>): OmniDevSetting
 export function settingsToLLMConfig(s: OmniDevSettings) {
   switch (s.activeProvider) {
     case 'openrouter':
-      return { provider: 'openrouter' as const, apiKey: s.openRouterKey, model: s.openRouterModel };
+      return {
+        provider: 'openrouter' as const,
+        apiKey: s.openRouterKey,
+        model: s.openRouterModel,
+      };
     case 'ollama':
-      return { provider: 'ollama' as const, baseURL: `${s.ollamaBaseURL}/v1`, model: s.ollamaModel, apiKey: 'ollama' };
+      return {
+        provider: 'ollama' as const,
+        baseURL: `${s.ollamaBaseURL}/v1`,
+        model: s.ollamaModel,
+        apiKey: 'ollama',
+      };
     case 'openai':
-      return { provider: 'openai' as const, apiKey: s.openaiKey, model: 'gpt-4o' };
+      return {
+        provider: 'openai' as const,
+        apiKey: s.openaiKey,
+        model: 'gpt-4o',
+      };
+    case 'google':
+      return {
+        provider: 'google' as const,
+        apiKey: s.googleApiKey,
+        model: s.googleModel || 'gemini-2.0-flash',
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      };
     case 'custom':
-      return { provider: 'custom' as const, baseURL: s.customBaseURL, model: s.customModel, apiKey: s.customKey };
+      return {
+        provider: 'custom' as const,
+        baseURL: s.customBaseURL,
+        model: s.customModel,
+        apiKey: s.customKey,
+      };
     default:
-      return { provider: 'openrouter' as const, apiKey: s.openRouterKey, model: s.openRouterModel };
+      return {
+        provider: 'openrouter' as const,
+        apiKey: s.openRouterKey,
+        model: s.openRouterModel,
+      };
   }
 }
