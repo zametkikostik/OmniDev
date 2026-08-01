@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyMessage } from 'viem';
-import { hasDatabase, prisma, memoryStore } from '../../../../../../../packages/db/src/client';
+import { hasDatabase, memoryStore } from '@/lib/db';
 import { consumeNonce } from '../nonce/route';
 
 export async function POST(req: NextRequest) {
@@ -25,19 +25,9 @@ export async function POST(req: NextRequest) {
     if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
 
     const wallet = address.toLowerCase();
-    if (hasDatabase()) {
-      const user = await prisma.user.upsert({
-        where: { walletAddress: wallet },
-        create: { walletAddress: wallet, credits: 50 },
-        update: {},
-      });
-      return NextResponse.json({
-        success: true,
-        user: { id: user.id, walletAddress: user.walletAddress, credits: user.credits },
-      });
-    }
     const user = memoryStore.getOrCreateUserByWallet(wallet);
     if (user.credits === 0) memoryStore.addCredits(user.id, 50);
+
     return NextResponse.json({
       success: true,
       user: {
@@ -45,6 +35,7 @@ export async function POST(req: NextRequest) {
         walletAddress: user.walletAddress,
         credits: memoryStore.getOrCreateUserByWallet(wallet).credits,
       },
+      backend: hasDatabase() ? 'postgres' : 'memory',
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Verify failed' }, { status: 500 });
