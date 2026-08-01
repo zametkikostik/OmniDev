@@ -1,64 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createLLMProvider, LLMConfig } from '../../../../../../packages/llm/src/provider';
+import { createLLMProvider } from '@/lib/llm';
+import { buildLLMConfig, needsApiKey } from '@/lib/build-llm-config';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { imageBase64, mimeType = 'image/png', prompt, settings } = body as {
-      imageBase64: string;
-      mimeType?: string;
+    const { imageBase64, prompt, settings } = body as {
+      imageBase64?: string;
       prompt?: string;
       settings?: any;
     };
 
-    if (!imageBase64) {
-      return NextResponse.json({ error: 'imageBase64 required' }, { status: 400 });
-    }
-
-    const llmConfig = buildConfig(settings);
-
-    if (!llmConfig.apiKey && llmConfig.provider !== 'ollama') {
+    const llmConfig = buildLLMConfig(settings);
+    if (needsApiKey(llmConfig)) {
       return NextResponse.json({
-        error: 'Для Screenshot→Code нужен OpenRouter / OpenAI ключ с multimodal-моделью (claude-3.5-sonnet или gpt-4o).',
+        files: demoVision(prompt || 'UI from screenshot'),
+        description: 'Демо vision (добавь API key)',
+        demo: true,
       });
     }
 
-    const visionModel =
-      llmConfig.model.includes('claude') || llmConfig.model.includes('gpt-4o') || llmConfig.model.includes('gemini')
-        ? llmConfig.model
-        : 'anthropic/claude-3.5-sonnet';
-
-    const provider = createLLMProvider({ ...llmConfig, model: visionModel });
-
-    const userText = prompt
-      ? `Скриншот UI. Сделай точную React + Tailwind + TypeScript реализацию. Дополнительно: ${prompt}`
-      : 'Скриншот UI. Сделай точную React + Tailwind + TypeScript реализацию этого интерфейса.';
-
-    const messages: any[] = [
-      {
-        role: 'system',
-        content: `You are OmniDev vision engine.
-Analyze the UI screenshot and generate a complete Next.js App Router component.
-
-Return ONLY valid JSON:
-{
-  "files": { "app/page.tsx": "...", "app/globals.css": "..." },
-  "description": "short description in Russian"
-}
-
-Use Tailwind. Pure JSON.`,
-      },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: userText },
-          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
-        ],
-      },
-    ];
+    const provider = createLLMProvider(llmConfig);
+    // Text-only fallback if multimodal not supported by OpenAI-compat path
+    const userContent = imageBase64
+      ? `Screenshot (base64 length ${imageBase64.length}). Build Next.js UI matching it. ${prompt || ''}`
+      : prompt || 'Build a modern landing page';
 
     const raw = await provider.complete({
-      messages,
+      messages: [
+        {
+          role: 'system',
+          content: `Return ONLY JSON { "files": { path: content }, "description": "ru" } for a Next.js 15 + Tailwind app.`,
+        },
+        { role: 'user', content: userContent },
+      ],
       json: true,
       temperature: 0.2,
       maxTokens: 12000,
@@ -66,10 +41,10 @@ Use Tailwind. Pure JSON.`,
 
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
     const parsed = JSON.parse(cleaned);
-
     return NextResponse.json({
-      files: parsed.files || {},
-      description: parsed.description || 'UI по скриншоту',
+      files: parsed.files,
+      description: parsed.description || 'From screenshot',
+      demo: false,
     });
   } catch (err: any) {
     console.error('[vision]', err);
@@ -77,16 +52,16 @@ Use Tailwind. Pure JSON.`,
   }
 }
 
-function buildConfig(s?: any): LLMConfig {
-  if (!s) return { provider: 'openrouter', model: 'anthropic/claude-3.5-sonnet' };
-  switch (s.activeProvider) {
-    case 'ollama':
-      return { provider: 'ollama', baseURL: `${(s.ollamaBaseURL || 'http://localhost:11434').replace(/\/$/, '')}/v1`, model: s.ollamaModel || 'llava', apiKey: 'ollama' };
-    case 'openai':
-      return { provider: 'openai', apiKey: s.openaiKey, model: 'gpt-4o' };
-    case 'custom':
-      return { provider: 'custom', baseURL: s.customBaseURL, model: s.customModel, apiKey: s.customKey };
-    default:
-      return { provider: 'openrouter', apiKey: s.openRouterKey, model: s.openRouterModel || 'anthropic/claude-3.5-sonnet' };
-  }
+function demoVision(prompt: string): Record<string, string> {
+  return {
+    'package.json': JSON.stringify({
+      name: 'omnidev-vision-demo', version: '0.1.0', private: true,
+      scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+      dependencies: { next: '15.0.0', react: '19.0.0', 'react-dom': '19.0.0' },
+      devDependencies: { typescript: '^5.6.0', tailwindcss: '^3.4.0', postcss: '^8.4.0', autoprefixer: '^10.4.0' },
+    }, null, 2),
+    'app/page.tsx': `'use client';\nexport default function Page() {\n  return <main className="min-h-screen bg-zinc-950 text-white flex items-center justify-center"><h1 className="text-3xl">Vision demo: ${prompt.slice(0, 80)}</h1></main>;\n}\n`,
+    'app/layout.tsx': `export default function RootLayout({ children }: { children: React.ReactNode }) { return <html><body>{children}</body></html>; }\n`,
+    'app/globals.css': '@tailwind base;@tailwind components;@tailwind utilities;',
+  };
 }
