@@ -1,0 +1,77 @@
+import { PrismaClient } from '@prisma/client';
+
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  });
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
+
+export function hasDatabase(): boolean {
+  return Boolean(process.env.DATABASE_URL);
+}
+
+type MemProject = {
+  id: string; userId: string | null; name: string; description: string; prompt: string;
+  files: Record<string, string>; shareSlug: string | null; isPublic: boolean;
+  createdAt: Date; updatedAt: Date;
+};
+
+type MemUser = { id: string; walletAddress: string | null; credits: number };
+
+const mem = {
+  projects: new Map<string, MemProject>(),
+  users: new Map<string, MemUser>(),
+  payments: new Set<string>(),
+};
+
+export const memoryStore = {
+  listProjects(userId?: string) {
+    return [...mem.projects.values()]
+      .filter((p) => !userId || p.userId === userId)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  },
+  getProject(id: string) { return mem.projects.get(id) || null; },
+  getBySlug(slug: string) {
+    return [...mem.projects.values()].find((p) => p.shareSlug === slug && p.isPublic) || null;
+  },
+  saveProject(data: Partial<MemProject> & { name: string; files: Record<string, string> }) {
+    const now = new Date();
+    if (data.id && mem.projects.has(data.id)) {
+      const existing = mem.projects.get(data.id)!;
+      const updated = { ...existing, ...data, updatedAt: now };
+      mem.projects.set(data.id, updated);
+      return updated;
+    }
+    const id = data.id || `proj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const project: MemProject = {
+      id, userId: data.userId || null, name: data.name, description: data.description || '',
+      prompt: data.prompt || '', files: data.files, shareSlug: data.shareSlug || null,
+      isPublic: data.isPublic || false, createdAt: now, updatedAt: now,
+    };
+    mem.projects.set(id, project);
+    return project;
+  },
+  deleteProject(id: string) { mem.projects.delete(id); },
+  getOrCreateUserByWallet(wallet: string) {
+    for (const u of mem.users.values()) {
+      if (u.walletAddress === wallet.toLowerCase()) return u;
+    }
+    const id = `user_${Date.now()}`;
+    const user: MemUser = { id, walletAddress: wallet.toLowerCase(), credits: 0 };
+    mem.users.set(id, user);
+    return user;
+  },
+  addCredits(userId: string, amount: number) {
+    const u = mem.users.get(userId);
+    if (u) u.credits += amount;
+    return u?.credits ?? 0;
+  },
+  hasPayment(txHash: string) { return mem.payments.has(txHash); },
+  recordPayment(txHash: string) { mem.payments.add(txHash); },
+};

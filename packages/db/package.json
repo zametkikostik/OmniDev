@@ -1,0 +1,18 @@
+{
+  "name": "@omnidev/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/client.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "push": "prisma db push"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.20.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.20.0",
+    "typescript": "^5.6.0"
+  }
+}
