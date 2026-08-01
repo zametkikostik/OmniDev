@@ -1,0 +1,47 @@
+PROPRIETARY SOFTWARE LICENSE
+OmniDev — Copyright (c) 2025–2026 zametkikostik. All rights reserved.
+
+1. Ownership
+   The software known as "OmniDev", including all source code, documentation,
+   designs, trademarks, and related materials (the "Software"), is the exclusive
+   property of the copyright holder (the "Owner").
+
+2. No License Granted by Default
+   Except as expressly agreed in a separate written contract signed by the Owner,
+   no rights are granted to any person or entity. This includes, without limitation:
+   - use in production or commercial environments;
+   - copying, modification, or distribution;
+   - reverse engineering, decompilation, or creation of derivative works;
+   - sublicensing, sale, rental, or public hosting of the Software or substantial parts of it.
+
+3. Restricted Evaluation
+   Viewing the public repository does not constitute a license. Cloning for personal
+   evaluation may be tolerated at the Owner's sole discretion and may be revoked at any time.
+   Evaluation does not permit redistribution, commercial use, or removal of copyright notices.
+
+4. Commercial / Production Use
+   Any commercial use, SaaS deployment, white-label, or redistribution requires a
+   prior written license from the Owner. Contact the Owner to negotiate terms.
+
+5. Contributions
+   By submitting code, issues, or other materials to the Owner, you assign all
+   intellectual property rights in those contributions to the Owner, unless a
+   separate agreement states otherwise.
+
+6. No Warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR
+   PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE OWNER BE LIABLE FOR ANY
+   CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+7. Termination
+   Any unauthorized use terminates any implied permission immediately. The Owner
+   reserves all rights to pursue legal remedies for infringement.
+
+8. Governing Law
+   This license is governed by the laws applicable at the Owner's place of residence,
+   without regard to conflict-of-law principles.
+
+For licensing inquiries: open an issue on the repository or contact the Owner directly.
+
+UNAUTHORIZED USE, COPYING, OR DISTRIBUTION IS STRICTLY PROHIBITED.
