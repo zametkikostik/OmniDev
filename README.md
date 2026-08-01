@@ -1,21 +1,50 @@
 # OmniDev — Autonomous AI Full-Stack Application Builder
 
-**Next-generation AI platform that synthesizes the best of V0, Bolt.new, Replit Agent, Marblism and Lovable.**
+**Создавай полноценные продакшн-приложения с помощью ИИ.**
 
-OmniDev generates complete, production-ready Full-Stack applications from natural language or screenshots, runs them instantly in the browser via WebContainers, automatically heals build/runtime errors, generates database schemas & APIs, and supports Web3 out of the box.
+OmniDev объединяет лучшее из V0, Bolt.new, Replit Agent, Marblism и Lovable в одну платформу:
 
-## Core Features
+- Генерация UI по тексту или скриншоту (React + Tailwind + Shadcn + Lucide)
+- Запуск full-stack прямо в браузере через WebContainers
+- Автономный Self-Healing Agent, который сам чинит ошибки сборки
+- Автогенерация Prisma-схем и API из обычного текста
+- Человечный чат-интерфейс для правок
+- Web3 из коробки (wagmi + RainbowKit)
 
-| Source          | Capability                                      | OmniDev Implementation                          |
-|-----------------|-------------------------------------------------|-------------------------------------------------|
-| **V0**          | High-fidelity UI generation                     | LLM + visual parser → React + Tailwind + Shadcn + Lucide |
-| **Bolt.new**    | Browser full-stack runtime                      | WebContainers (Node.js + Vite) in the client    |
-| **Replit Agent**| Self-healing autonomous loop                    | Loop-error fixer agent                          |
-| **Marblism**    | Auto DB schema + API from plain English         | Prisma + PostgreSQL + auto routes               |
-| **Lovable**     | Conversational editing                          | Stateful chat that never breaks existing code   |
-| **OmniDev**     | Web3-native                                     | wagmi + RainbowKit + ethers.js templates        |
+## Текущий статус (v0.2)
 
-## Quick Start (Development)
+| Компонент                    | Статус      |
+|-----------------------------|-------------|
+| Self-Healing AI Agent       | ✅ Готов    |
+| WebContainer Manager        | ✅ Готов    |
+| LLM Orchestrator            | ✅ Готов    |
+| Chat + Preview UI           | ✅ Готов    |
+| Project templates           | ✅ Готов    |
+| Web3 templates              | ✅ Готов    |
+| Real LLM wiring             | 🔄 В работе |
+| Screenshot → Code           | ⏳ Планируется |
+| Multi-tenant SaaS           | ⏳ Планируется |
+
+## Структура репозитория
+
+```
+OmniDev/
+├── apps/
+│   └── web/                  # Next.js фронтенд (чат + превью)
+├── packages/
+│   ├── core/                 # Self-Healing Agent
+│   ├── webcontainer/         # WebContainer Manager
+│   ├── orchestrator/         # Intent Router + координация
+│   ├── ui-engine/            # (скоро) UI Generation
+│   └── db-engine/            # (скоро) Prisma + API gen
+├── templates/
+│   ├── next-saas/            # Базовый SaaS-шаблон
+│   └── web3-dapp/            # Web3-шаблон
+└── docs/
+    └── ARCHITECTURE.md
+```
+
+## Быстрый старт
 
 ```bash
 git clone https://github.com/zametkikostik/OmniDev.git
@@ -24,23 +53,26 @@ npm install
 npm run dev
 ```
 
-## Architecture Overview
+Открой http://localhost:3000
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design and Mermaid diagram.
+## Как это работает
 
-## Self-Healing Agent
+1. Пользователь пишет в чат: «Сделай SaaS-дашборд с авторизацией и Stripe»
+2. Orchestrator классифицирует intent → `create_app`
+3. LLM генерирует полный набор файлов
+4. WebContainer Manager монтирует проект и запускает `npm install && npm run dev`
+5. Если возникают ошибки — Self-Healing Agent ловит их, чинит код и ретраит
+6. Пользователь видит живое превью справа
+7. Дальше можно править фразами: «сделай кнопку круглее», «добавь кошелёк»
 
-The heart of autonomy lives in `src/self-healing-agent.ts`.  
-It captures Vite/Next.js build errors, pipes them to the LLM, rewrites the broken files and retries until the application compiles successfully.
+## Документация
 
-## Roadmap
+Полная архитектура и roadmap: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-See the Master Plan section in `docs/ARCHITECTURE.md`.
-
-## License
+## Лицензия
 
 MIT
 
 ---
 
-Built to be the ultimate developer platform.
+Строим платформу, которая позволит любому человеку создавать настоящие продукты.
