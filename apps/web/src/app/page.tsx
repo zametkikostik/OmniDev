@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { loadSettings } from '@/lib/settings-store';
 import { useProjectRunner } from '@/hooks/useProjectRunner';
 import { ExportGitHubModal } from '@/components/ExportGitHubModal';
+import { ScreenshotUpload } from '@/components/ScreenshotUpload';
+import { ShareButton } from '@/components/ShareButton';
 
 interface Message { role: 'user' | 'assistant'; content: string; }
 
@@ -25,7 +27,7 @@ function isEditIntent(text: string): boolean {
 export default function OmniDevPage() {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: 'Привет! Я OmniDev. Опиши приложение — сгенерирую и запущу с живым превью.\n\nПотом можно править: «сделай кнопку круглее». Экспорт в GitHub и сохранение проектов — тоже есть.',
+    content: 'Привет! OmniDev: создай приложение, правь, загрузи скрин, поделись ссылкой, экспорт в GitHub.',
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,30 +42,26 @@ export default function OmniDevPage() {
     if (prevStatus.current !== 'ready' && runner.status === 'ready' && runner.previewUrl) {
       setMessages((prev) => [...prev, {
         role: 'assistant',
-        content: `✅ ${runner.description || 'Проект готов!'}\n\nПревью справа. Можешь править или экспортировать в GitHub.`,
+        content: `✅ ${runner.description || 'Проект готов!'}\n\nПревью справа. Правь / Шаринг / GitHub.`,
       }]);
     }
     if (prevStatus.current !== 'error' && runner.status === 'error' && runner.error) {
-      setMessages((prev) => [...prev, {
-        role: 'assistant',
-        content: `⚠️ ${runner.error}\n\nSelf-Healing пытался исправить. Переформулируй запрос или проверь ключ.`,
-      }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: `⚠️ ${runner.error}` }]);
     }
     prevStatus.current = runner.status;
   }, [runner.status, runner.previewUrl, runner.error, runner.description]);
 
   const busy = ['generating', 'booting', 'installing', 'starting', 'healing', 'editing'].includes(runner.status);
-
   const statusLabel =
-    runner.status === 'generating' ? 'Генерирую код...' :
-    runner.status === 'booting' ? 'Запускаю WebContainer...' :
-    runner.status === 'installing' ? 'Ставлю зависимости...' :
-    runner.status === 'starting' ? 'Стартую dev-сервер...' :
-    runner.status === 'healing' ? '🔧 Исправляю...' :
-    runner.status === 'editing' ? '✏️ Вношу правки...' :
+    runner.status === 'generating' ? 'Генерирую...' :
+    runner.status === 'booting' ? 'WebContainer...' :
+    runner.status === 'installing' ? 'npm install...' :
+    runner.status === 'starting' ? 'dev server...' :
+    runner.status === 'healing' ? '🔧 heal...' :
+    runner.status === 'editing' ? '✏️ edit...' :
     runner.status === 'ready' ? 'Готово' :
     runner.status === 'error' ? 'Ошибка' :
-    isLoading ? 'Думаю...' : 'Готов';
+    isLoading ? '...' : 'Готов';
 
   async function sendMessage() {
     if (!input.trim() || isLoading || busy) return;
@@ -71,32 +69,28 @@ export default function OmniDevPage() {
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
-
     try {
       const hasProject = Object.keys(runner.files).length > 0;
-
       if (isCreateIntent(userMsg) && !hasProject) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Принял. Генерирую проект и запускаю превью...' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Генерирую и запускаю...' }]);
         await runner.generateAndRun(userMsg);
       } else if (hasProject && (isEditIntent(userMsg) || !isCreateIntent(userMsg))) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Вношу изменения...' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Вношу правки...' }]);
         await runner.editProject(userMsg);
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Готово. Превью обновится (HMR).' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Готово (HMR).' }]);
       } else if (isCreateIntent(userMsg)) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Создаю новый проект...' }]);
         await runner.generateAndRun(userMsg);
       } else {
         const settings = loadSettings();
         const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: userMsg, settings }),
         });
         const data = await res.json();
-        setMessages((prev) => [...prev, { role: 'assistant', content: data.reply || 'Готово!' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: data.reply || 'OK' }]);
       }
     } catch (err: any) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Ошибка: ${err.message || 'неизвестная'}` }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
     } finally {
       setIsLoading(false);
     }
@@ -114,11 +108,18 @@ export default function OmniDevPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ScreenshotUpload onGenerated={async (files, description) => {
+              setMessages((prev) => [...prev, { role: 'assistant', content: `📷 ${description}\n\nWebContainer...` }]);
+              await runner.runFromFiles(files, description);
+            }} />
             {Object.keys(runner.files).length > 0 && (
-              <button onClick={() => setShowExport(true)} className="text-xs text-zinc-400 hover:text-violet-400 transition">GitHub</button>
+              <>
+                <ShareButton projectId={runner.projectId} />
+                <button onClick={() => setShowExport(true)} className="text-xs text-zinc-400 hover:text-violet-400">GitHub</button>
+              </>
             )}
-            <a href="/projects" className="text-xs text-zinc-400 hover:text-violet-400 transition">Проекты</a>
-            <a href="/settings" className="text-xs text-zinc-400 hover:text-violet-400 transition">Настройки</a>
+            <a href="/projects" className="text-xs text-zinc-400 hover:text-violet-400">Проекты</a>
+            <a href="/settings" className="text-xs text-zinc-400 hover:text-violet-400">Настройки</a>
           </div>
         </header>
 
@@ -131,9 +132,7 @@ export default function OmniDevPage() {
             </div>
           ))}
           {(isLoading || busy) && (
-            <div className="flex justify-start">
-              <div className="bg-zinc-800 rounded-2xl px-4 py-3 text-sm text-zinc-400">{statusLabel}</div>
-            </div>
+            <div className="flex justify-start"><div className="bg-zinc-800 rounded-2xl px-4 py-3 text-sm text-zinc-400">{statusLabel}</div></div>
           )}
           <div ref={bottomRef} />
         </div>
@@ -142,13 +141,13 @@ export default function OmniDevPage() {
           <div className="flex gap-2">
             <input value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-              placeholder={Object.keys(runner.files).length ? 'Сделай кнопку круглее...' : 'Создай SaaS дашборд...'}
-              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-zinc-600"
+              placeholder={Object.keys(runner.files).length ? 'Правка...' : 'Создай приложение...'}
+              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               disabled={isLoading || busy} />
             <button onClick={sendMessage} disabled={isLoading || busy || !input.trim()}
-              className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-5 py-3 text-sm font-medium transition">→</button>
+              className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl px-5 py-3 text-sm font-medium">→</button>
           </div>
-          <p className="text-[11px] text-zinc-600 mt-2 text-center">Генерация · Правки · Self-Healing · GitHub Export</p>
+          <p className="text-[11px] text-zinc-600 mt-2 text-center">Generate · Edit · Vision · Share · USDC</p>
         </div>
       </div>
 
@@ -157,22 +156,18 @@ export default function OmniDevPage() {
           <div className="flex gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-500/80" /><div className="w-3 h-3 rounded-full bg-yellow-500/80" /><div className="w-3 h-3 rounded-full bg-green-500/80" />
           </div>
-          <div className="flex-1 text-center text-xs text-zinc-500 truncate">{runner.previewUrl || 'Превью появится здесь'}</div>
+          <div className="flex-1 text-center text-xs text-zinc-500 truncate">{runner.previewUrl || 'Превью'}</div>
         </div>
         <div className="flex-1 relative">
           {runner.previewUrl ? (
-            <iframe src={runner.previewUrl} className="absolute inset-0 w-full h-full border-0" title="OmniDev Preview" allow="cross-origin-isolated" />
+            <iframe src={runner.previewUrl} className="absolute inset-0 w-full h-full border-0" title="Preview" allow="cross-origin-isolated" />
           ) : runner.logs.length > 0 ? (
-            <div className="absolute inset-0 overflow-y-auto p-4 font-mono text-xs text-zinc-500 space-y-0.5">
-              {runner.logs.slice(-40).map((line, i) => <div key={i} className="whitespace-pre-wrap break-all">{line}</div>)}
+            <div className="absolute inset-0 overflow-y-auto p-4 font-mono text-xs text-zinc-500">
+              {runner.logs.slice(-40).map((line, i) => <div key={i} className="break-all">{line}</div>)}
             </div>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-zinc-600">
-              <div className="text-center">
-                <div className="text-5xl mb-4 opacity-30">◈</div>
-                <p className="text-sm">Напиши, что хочешь создать</p>
-                <p className="text-xs mt-1 text-zinc-700">Например: «SaaS дашборд с авторизацией»</p>
-              </div>
+              <div className="text-center"><div className="text-5xl mb-4 opacity-30">◈</div><p className="text-sm">Создай или загрузи скрин</p></div>
             </div>
           )}
         </div>
