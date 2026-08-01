@@ -1,30 +1,29 @@
-# OmniDev — Autonomous AI Full-Stack Application Builder
+# OmniDev — AI Full-Stack Application Builder
 
-**Создавай полноценные продакшн-приложения с помощью ИИ.**
+## v0.8 — Production path
 
-## v0.7
-
-| Фича | Статус |
-|------|--------|
-| Генерация → WebContainer → Live Preview | ✅ |
-| Self-Healing + Conversational edits | ✅ |
+| Feature | Status |
+|---------|--------|
+| Generate → WebContainer → Preview | ✅ |
+| Self-Healing + Edits | ✅ |
 | OpenRouter / Ollama | ✅ |
-| **Postgres backend** (с fallback) | ✅ |
-| **Шаринг проектов** `/p/[slug]` | ✅ |
-| **USDC + native MetaMask** | ✅ |
-| **Screenshot → Code → WebContainer** | ✅ |
-| GitHub export | ✅ |
-
-## Быстрый старт
+| Postgres + memory fallback | ✅ |
+| Share `/p/[slug]` | ✅ |
+| MetaMask USDC + native | ✅ |
+| On-chain payment verify | ✅ |
+| Screenshot → Code → run | ✅ |
+| Wallet auth + credits | ✅ |
+| Rate limit | ✅ |
+| File tree | ✅ |
+| Landing `/landing` | ✅ |
+| Docker + deploy docs | ✅ |
+| Health `/api/health` | ✅ |
 
 ```bash
 git clone https://github.com/zametkikostik/OmniDev.git
-cd OmniDev
-cp apps/web/.env.example apps/web/.env.local
-npm install
-npm run dev
+cd OmniDev && npm install && npm run dev
 ```
 
-Без Postgres — in-memory + localStorage. С Postgres — `DATABASE_URL` + `npx prisma db push` в `packages/db`.
+Deploy: [docs/DEPLOY.md](docs/DEPLOY.md)
 
 MIT

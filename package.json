@@ -1,19 +1,15 @@
 {
   "name": "omnidev",
-  "version": "0.2.0",
-  "description": "OmniDev — Autonomous AI Full-Stack Application Builder",
+  "version": "0.8.0",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "npm run dev --workspace=@omnidev/web",
-    "build": "npm run build --workspaces --if-present",
-    "typecheck": "tsc --noEmit"
+    "build": "npm run build --workspace=@omnidev/web",
+    "start": "npm run start --workspace=@omnidev/web",
+    "db:generate": "npm run generate --workspace=@omnidev/db",
+    "db:push": "npm run push --workspace=@omnidev/db",
+    "health": "curl -s http://localhost:3000/api/health"
   },
-  "engines": {
-    "node": ">=20"
-  },
-  "license": "MIT"
+  "engines": { "node": ">=20" }
 }
