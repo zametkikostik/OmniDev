@@ -1,13 +1,9 @@
 /**
  * OmniDev LLM Provider Layer
- *
- * Supports:
- * - OpenRouter (user can paste their own API / Management key)
- * - Ollama (local models)
- * - Direct OpenAI-compatible endpoints
+ * OpenRouter, Ollama, OpenAI, Google AI Studio (Gemini), Anthropic-style, custom
  */
 
-export type LLMProviderType = 'openrouter' | 'ollama' | 'openai' | 'anthropic' | 'custom';
+export type LLMProviderType = 'openrouter' | 'ollama' | 'openai' | 'anthropic' | 'google' | 'custom';
 
 export interface LLMConfig {
   provider: LLMProviderType;
@@ -36,11 +32,30 @@ export interface LLMProvider {
 }
 
 const DEFAULTS: Record<LLMProviderType, { baseURL: string; model: string }> = {
-  openrouter: { baseURL: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-3.5-sonnet' },
-  ollama: { baseURL: 'http://localhost:11434/v1', model: 'llama3.1' },
-  openai: { baseURL: 'https://api.openai.com/v1', model: 'gpt-4o' },
-  anthropic: { baseURL: 'https://api.anthropic.com/v1', model: 'claude-3-5-sonnet-20241022' },
-  custom: { baseURL: '', model: '' },
+  openrouter: {
+    baseURL: 'https://openrouter.ai/api/v1',
+    model: 'anthropic/claude-3.5-sonnet',
+  },
+  ollama: {
+    baseURL: 'http://localhost:11434/v1',
+    model: 'llama3.1',
+  },
+  openai: {
+    baseURL: 'https://api.openai.com/v1',
+    model: 'gpt-4o',
+  },
+  anthropic: {
+    baseURL: 'https://api.anthropic.com/v1',
+    model: 'claude-3-5-sonnet-20241022',
+  },
+  google: {
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    model: 'gemini-2.0-flash',
+  },
+  custom: {
+    baseURL: '',
+    model: '',
+  },
 };
 
 export class OpenAICompatibleProvider implements LLMProvider {
@@ -69,7 +84,9 @@ export class OpenAICompatibleProvider implements LLMProvider {
       body.response_format = { type: 'json_object' };
     }
 
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
 
     if (this.config.apiKey) {
       headers['Authorization'] = `Bearer ${this.config.apiKey}`;
@@ -118,6 +135,15 @@ export async function listOllamaModels(baseURL = 'http://localhost:11434'): Prom
     return [];
   }
 }
+
+export const GOOGLE_AI_STUDIO_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-2.5-flash-preview-05-20',
+  'gemini-1.5-pro',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+];
 
 export const OPENROUTER_POPULAR_MODELS = [
   'anthropic/claude-3.5-sonnet',
