@@ -2,20 +2,19 @@
 
 **Создавай полноценные продакшн-приложения с помощью ИИ.**
 
-## v0.4 — Полный цикл
+## v0.5
 
 | Фича | Статус |
 |------|--------|
-| Self-Healing AI Agent | ✅ |
-| WebContainer (браузерный runtime) | ✅ |
-| Генерация проекта → Live Preview | ✅ |
-| OpenRouter (свой API Key) | ✅ |
-| Ollama (локальные модели) | ✅ |
-| MetaMask billing (любые сети) | ✅ |
-| Settings UI | ✅ |
-| Chat + Preview | ✅ |
+| Генерация → WebContainer → Live Preview | ✅ |
+| Self-Healing Agent | ✅ |
+| Conversational edits | ✅ |
+| Сохранение проектов | ✅ |
+| Экспорт в GitHub | ✅ |
+| OpenRouter / Ollama / OpenAI | ✅ |
+| MetaMask billing | ✅ |
 
-## Как пользоваться
+## Быстрый старт
 
 ```bash
 git clone https://github.com/zametkikostik/OmniDev.git
@@ -24,25 +23,10 @@ npm install
 npm run dev
 ```
 
-1. Открой http://localhost:3000
-2. **Настройки** → вставь OpenRouter API Key (или укажи Ollama)
-3. В чате: «Создай SaaS дашборд с тёмной темой»
-4. OmniDev сгенерирует проект, поднимает WebContainer, ставит зависимости, запускает превью. Если ошибки — Self-Healing Agent чинит сам.
-
-## Архитектура цикла
-
-```
-User prompt
-    ↓
-/api/generate  (LLM → files)
-    ↓
-WebContainer.boot() + mount(files)
-    ↓
-npm install && npm run dev
-    ↓
-server-ready → iframe preview
-    ↓
-(on error) /api/heal → rewrite files → retry
-```
+1. **Настройки** → OpenRouter API Key или Ollama
+2. Чат: «Создай SaaS дашборд»
+3. После превью: «сделай кнопку круглее»
+4. Кнопка **GitHub** → экспорт
+5. **Проекты** — список сохранённых
 
 MIT
