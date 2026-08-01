@@ -6,6 +6,8 @@ import { useProjectRunner } from '@/hooks/useProjectRunner';
 import { ExportGitHubModal } from '@/components/ExportGitHubModal';
 import { ScreenshotUpload } from '@/components/ScreenshotUpload';
 import { ShareButton } from '@/components/ShareButton';
+import { SignInButton } from '@/components/wallet/SignInButton';
+import { FileTree } from '@/components/editor/FileTree';
 
 interface Message { role: 'user' | 'assistant'; content: string; }
 
@@ -27,7 +29,7 @@ function isEditIntent(text: string): boolean {
 export default function OmniDevPage() {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: 'Привет! OmniDev: создай приложение, правь, загрузи скрин, поделись ссылкой, экспорт в GitHub.',
+    content: 'Привет! OmniDev v0.9: создай, правь, скрин, шаринг, GitHub, SIWE, Stripe.',
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -42,7 +44,7 @@ export default function OmniDevPage() {
     if (prevStatus.current !== 'ready' && runner.status === 'ready' && runner.previewUrl) {
       setMessages((prev) => [...prev, {
         role: 'assistant',
-        content: `✅ ${runner.description || 'Проект готов!'}\n\nПревью справа. Правь / Шаринг / GitHub.`,
+        content: `✅ ${runner.description || 'Готов!'}\n\nПревью + файлы слева. Правь / Шаринг / GitHub.`,
       }]);
     }
     if (prevStatus.current !== 'error' && runner.status === 'error' && runner.error) {
@@ -72,10 +74,10 @@ export default function OmniDevPage() {
     try {
       const hasProject = Object.keys(runner.files).length > 0;
       if (isCreateIntent(userMsg) && !hasProject) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Генерирую и запускаю...' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Генерирую...' }]);
         await runner.generateAndRun(userMsg);
       } else if (hasProject && (isEditIntent(userMsg) || !isCreateIntent(userMsg))) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Вношу правки...' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Правки...' }]);
         await runner.editProject(userMsg);
         setMessages((prev) => [...prev, { role: 'assistant', content: 'Готово (HMR).' }]);
       } else if (isCreateIntent(userMsg)) {
@@ -107,9 +109,9 @@ export default function OmniDevPage() {
               <p className="text-xs text-zinc-500 mt-0.5">{statusLabel}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
             <ScreenshotUpload onGenerated={async (files, description) => {
-              setMessages((prev) => [...prev, { role: 'assistant', content: `📷 ${description}\n\nWebContainer...` }]);
+              setMessages((prev) => [...prev, { role: 'assistant', content: `📷 ${description}` }]);
               await runner.runFromFiles(files, description);
             }} />
             {Object.keys(runner.files).length > 0 && (
@@ -120,6 +122,7 @@ export default function OmniDevPage() {
             )}
             <a href="/projects" className="text-xs text-zinc-400 hover:text-violet-400">Проекты</a>
             <a href="/settings" className="text-xs text-zinc-400 hover:text-violet-400">Настройки</a>
+            <SignInButton />
           </div>
         </header>
 
@@ -147,7 +150,7 @@ export default function OmniDevPage() {
             <button onClick={sendMessage} disabled={isLoading || busy || !input.trim()}
               className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl px-5 py-3 text-sm font-medium">→</button>
           </div>
-          <p className="text-[11px] text-zinc-600 mt-2 text-center">Generate · Edit · Vision · Share · USDC</p>
+          <p className="text-[11px] text-zinc-600 mt-2 text-center">v0.9 · SIWE · Stripe · FileTree</p>
         </div>
       </div>
 
@@ -158,18 +161,25 @@ export default function OmniDevPage() {
           </div>
           <div className="flex-1 text-center text-xs text-zinc-500 truncate">{runner.previewUrl || 'Превью'}</div>
         </div>
-        <div className="flex-1 relative">
-          {runner.previewUrl ? (
-            <iframe src={runner.previewUrl} className="absolute inset-0 w-full h-full border-0" title="Preview" allow="cross-origin-isolated" />
-          ) : runner.logs.length > 0 ? (
-            <div className="absolute inset-0 overflow-y-auto p-4 font-mono text-xs text-zinc-500">
-              {runner.logs.slice(-40).map((line, i) => <div key={i} className="break-all">{line}</div>)}
-            </div>
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-zinc-600">
-              <div className="text-center"><div className="text-5xl mb-4 opacity-30">◈</div><p className="text-sm">Создай или загрузи скрин</p></div>
+        <div className="flex-1 relative flex">
+          {Object.keys(runner.files).length > 0 && (
+            <div className="w-52 border-r border-zinc-800 overflow-hidden flex-shrink-0 hidden lg:flex flex-col bg-zinc-950">
+              <FileTree files={runner.files} />
             </div>
           )}
+          <div className="flex-1 relative">
+            {runner.previewUrl ? (
+              <iframe src={runner.previewUrl} className="absolute inset-0 w-full h-full border-0" title="Preview" allow="cross-origin-isolated" />
+            ) : runner.logs.length > 0 ? (
+              <div className="absolute inset-0 overflow-y-auto p-4 font-mono text-xs text-zinc-500">
+                {runner.logs.slice(-40).map((line, i) => <div key={i} className="break-all">{line}</div>)}
+              </div>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-zinc-600">
+                <div className="text-center"><div className="text-5xl mb-4 opacity-30">◈</div><p className="text-sm">Создай или загрузи скрин</p></div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
