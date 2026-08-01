@@ -2,47 +2,22 @@
 
 **Создавай полноценные продакшн-приложения с помощью ИИ.**
 
-OmniDev объединяет лучшее из V0, Bolt.new, Replit Agent, Marblism и Lovable в одну платформу:
+## Что умеет (v0.3)
 
-- Генерация UI по тексту или скриншоту (React + Tailwind + Shadcn + Lucide)
-- Запуск full-stack прямо в браузере через WebContainers
-- Автономный Self-Healing Agent, который сам чинит ошибки сборки
-- Автогенерация Prisma-схем и API из обычного текста
-- Человечный чат-интерфейс для правок
-- Web3 из коробки (wagmi + RainbowKit)
-
-## Текущий статус (v0.2)
-
-| Компонент                    | Статус      |
-|-----------------------------|-------------|
-| Self-Healing AI Agent       | ✅ Готов    |
-| WebContainer Manager        | ✅ Готов    |
-| LLM Orchestrator            | ✅ Готов    |
-| Chat + Preview UI           | ✅ Готов    |
-| Project templates           | ✅ Готов    |
-| Web3 templates              | ✅ Готов    |
-| Real LLM wiring             | 🔄 В работе |
-| Screenshot → Code           | ⏳ Планируется |
-| Multi-tenant SaaS           | ⏳ Планируется |
-
-## Структура репозитория
-
-```
-OmniDev/
-├── apps/
-│   └── web/                  # Next.js фронтенд (чат + превью)
-├── packages/
-│   ├── core/                 # Self-Healing Agent
-│   ├── webcontainer/         # WebContainer Manager
-│   ├── orchestrator/         # Intent Router + координация
-│   ├── ui-engine/            # (скоро) UI Generation
-│   └── db-engine/            # (скоро) Prisma + API gen
-├── templates/
-│   ├── next-saas/            # Базовый SaaS-шаблон
-│   └── web3-dapp/            # Web3-шаблон
-└── docs/
-    └── ARCHITECTURE.md
-```
+| Фича | Статус |
+|------|--------|
+| Self-Healing AI Agent | ✅ |
+| WebContainer Manager | ✅ |
+| LLM Orchestrator | ✅ |
+| Chat + Preview UI | ✅ |
+| **OpenRouter** (свой API / Management Key) | ✅ |
+| **Ollama** (локальные модели) | ✅ |
+| **MetaMask billing** (любые сети) | ✅ |
+| Settings UI | ✅ |
+| Real LLM wiring in chat | ✅ |
+| Full create → preview cycle | 🔄 |
+| Screenshot → Code | ⏳ |
+| Multi-tenant SaaS | ⏳ |
 
 ## Быстрый старт
 
@@ -53,26 +28,42 @@ npm install
 npm run dev
 ```
 
-Открой http://localhost:3000
+1. Открой http://localhost:3000
+2. Зайди в **Настройки**
+3. Вставь свой **OpenRouter API Key** (или укажи Ollama)
+4. Вернись в чат и пиши: «Сделай SaaS дашборд с авторизацией»
 
-## Как это работает
+## Провайдеры LLM
 
-1. Пользователь пишет в чат: «Сделай SaaS-дашборд с авторизацией и Stripe»
-2. Orchestrator классифицирует intent → `create_app`
-3. LLM генерирует полный набор файлов
-4. WebContainer Manager монтирует проект и запускает `npm install && npm run dev`
-5. Если возникают ошибки — Self-Healing Agent ловит их, чинит код и ретраит
-6. Пользователь видит живое превью справа
-7. Дальше можно править фразами: «сделай кнопку круглее», «добавь кошелёк»
+- **OpenRouter** — вставь свой ключ с https://openrouter.ai/keys (Management keys поддерживаются)
+- **Ollama** — локальные модели (`llama3.1`, `codellama`, `deepseek-coder` и т.д.)
+- **OpenAI** / **Custom endpoint** — любой OpenAI-compatible сервер
 
-## Документация
+Клиенты тоже могут подключать свои ключи и свои локальные Ollama.
 
-Полная архитектура и roadmap: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+## Оплата через MetaMask
+
+Страница `/billing` — оплата в любой сети:
+- Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche, Sepolia
+- Native token или USDC
+
+После подтверждения транзакции кредиты зачисляются автоматически.
+
+## Структура
+
+```
+apps/web/                 # Next.js UI (чат, настройки, биллинг)
+packages/
+  core/                   # Self-Healing Agent
+  webcontainer/           # WebContainer Manager
+  orchestrator/           # Intent Router
+  llm/                    # Universal LLM Provider (OpenRouter + Ollama + ...)
+  billing/                # MetaMask multi-chain payments
+templates/
+  next-saas/
+  web3-dapp/
+```
 
 ## Лицензия
 
 MIT
-
----
-
-Строим платформу, которая позволит любому человеку создавать настоящие продукты.
