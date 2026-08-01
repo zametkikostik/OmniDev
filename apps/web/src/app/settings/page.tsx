@@ -7,7 +7,7 @@ import {
   OmniDevSettings,
   DEFAULT_SETTINGS,
 } from '@/lib/settings-store';
-import { OPENROUTER_POPULAR_MODELS, GOOGLE_AI_STUDIO_MODELS } from '../../../../../packages/llm/src/provider';
+import { OPENROUTER_POPULAR_MODELS, GOOGLE_AI_STUDIO_MODELS } from '@/lib/llm';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<OmniDevSettings>(DEFAULT_SETTINGS);
