@@ -1,52 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-/**
- * OmniDev Chat API
- * 
- * In production this wires to the full Orchestrator.
- * For now it returns a realistic mock that demonstrates the flow.
- */
+import { createLLMProvider, LLMConfig } from '../../../../../../packages/llm/src/provider';
 
 export async function POST(req: NextRequest) {
-  const { message } = await req.json();
+  try {
+    const body = await req.json();
+    const { message, settings } = body as { message: string; settings?: any };
 
-  // Simulate thinking delay
-  await new Promise((r) => setTimeout(r, 800));
+    if (!message || typeof message !== 'string') {
+      return NextResponse.json({ error: 'message required' }, { status: 400 });
+    }
 
-  // Very simple keyword routing for demo
-  const lower = (message as string).toLowerCase();
+    const llmConfig = buildConfigFromSettings(settings);
 
-  if (lower.includes('создай') || lower.includes('сделай') || lower.includes('приложение') || lower.includes('saas') || lower.includes('дашборд')) {
-    return NextResponse.json({
-      reply: `✅ Принял задачу: «${message}»\n\nЯ сейчас:\n1. Сгенерирую структуру Next.js + Tailwind + Shadcn\n2. Создам нужные страницы и компоненты\n3. Подниму WebContainer и запущу dev-сервер\n4. Если будут ошибки — сам их исправлю\n\nПревью появится справа через несколько секунд.`,
-      status: 'Генерирую проект...',
-      previewUrl: null,
+    if (
+      (llmConfig.provider === 'openrouter' || llmConfig.provider === 'openai') &&
+      !llmConfig.apiKey
+    ) {
+      return NextResponse.json({
+        reply: mockReply(message),
+        status: 'Готов (нужен API-ключ в Настройках)',
+        needsKey: true,
+      });
+    }
+
+    const provider = createLLMProvider(llmConfig);
+
+    const systemPrompt = `Ты — OmniDev, автономный ИИ-архитектор full-stack приложений.
+Ты помогаешь пользователю создавать полноценные production-ready приложения.
+Отвечай на русском, кратко и по делу.`;
+
+    const reply = await provider.complete({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message },
+      ],
+      temperature: 0.3,
     });
-  }
 
-  if (lower.includes('кнопк') || lower.includes('цвет') || lower.includes('круглее') || lower.includes('измени')) {
+    const lower = message.toLowerCase();
+    let status = 'Готов';
+    if (lower.includes('создай') || lower.includes('сделай') || lower.includes('приложение')) {
+      status = 'Генерирую проект...';
+    }
+
     return NextResponse.json({
-      reply: `✏️ Понял правку. Вношу изменения в компоненты, сохраняя остальной код нетронутым.\n\nГотово. Превью обновится автоматически.`,
-      status: 'Готов',
+      reply,
+      status,
+      provider: llmConfig.provider,
+      model: llmConfig.model,
     });
-  }
-
-  if (lower.includes('база') || lower.includes('prisma') || lower.includes('api') || lower.includes('эндпоинт')) {
+  } catch (err: any) {
+    console.error('[chat]', err);
     return NextResponse.json({
-      reply: `🗄️ Генерирую Prisma-схему и API-роуты на основе твоего описания.\n\nФайлы prisma/schema.prisma и app/api/* добавлены.`,
-      status: 'Готов',
-    });
+      reply: `Ошибка LLM: ${err.message || 'неизвестная ошибка'}. Проверь ключ и модель в Настройках.`,
+      status: 'Ошибка',
+      error: true,
+    }, { status: 200 });
   }
+}
 
-  if (lower.includes('web3') || lower.includes('кошелёк') || lower.includes('wallet') || lower.includes('wagmi')) {
-    return NextResponse.json({
-      reply: `🔗 Добавляю wagmi + RainbowKit.\n\nТеперь можешь использовать <WalletButton /> в любом компоненте. Авторизация через кошелёк готова.`,
-      status: 'Готов',
-    });
+function buildConfigFromSettings(s?: any): LLMConfig {
+  if (!s) return { provider: 'openrouter', model: 'anthropic/claude-3.5-sonnet' };
+
+  switch (s.activeProvider) {
+    case 'ollama':
+      return {
+        provider: 'ollama',
+        baseURL: `${(s.ollamaBaseURL || 'http://localhost:11434').replace(/\/$/, '')}/v1`,
+        model: s.ollamaModel || 'llama3.1',
+        apiKey: 'ollama',
+      };
+    case 'openai':
+      return { provider: 'openai', apiKey: s.openaiKey, model: 'gpt-4o' };
+    case 'custom':
+      return { provider: 'custom', baseURL: s.customBaseURL, model: s.customModel, apiKey: s.customKey };
+    default:
+      return {
+        provider: 'openrouter',
+        apiKey: s.openRouterKey,
+        model: s.openRouterModel || 'anthropic/claude-3.5-sonnet',
+      };
   }
+}
 
-  return NextResponse.json({
-    reply: `Понял: «${message}».\n\nМогу создать приложение, править UI, генерировать базу данных, добавлять Web3 или исправлять ошибки. Просто скажи, что нужно.`,
-    status: 'Готов',
-  });
+function mockReply(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes('создай') || lower.includes('сделай') || lower.includes('приложение') || lower.includes('saas')) {
+    return `✅ Принял задачу: «${message}»\n\nЧтобы я реально сгенерировал код, добавь свой OpenRouter API Key в Настройках (или подключи Ollama).`;
+  }
+  return `Понял: «${message}».\n\nДобавь API-ключ OpenRouter или подключи Ollama в Настройках.`;
 }
