@@ -1,15 +1,11 @@
-export const COST = {
-  generate: 5,
-  edit: 2,
-  chat: 1,
-  heal: 2,
-  vision: 4,
-} as const;
+import { CREDIT_COSTS, CreditAction } from './credits';
 
-export type BillableAction = keyof typeof COST;
+export type BillableAction = CreditAction;
 
 export function creditsFor(action: BillableAction, tokenEstimate?: number): number {
-  const base = COST[action];
+  const base = CREDIT_COSTS[action];
   if (!tokenEstimate || tokenEstimate < 2000) return base;
   return base + Math.floor(tokenEstimate / 4000);
 }
+
+export { CREDIT_COSTS };
