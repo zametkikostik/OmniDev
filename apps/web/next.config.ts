@@ -1,10 +1,27 @@
 import type { NextConfig } from 'next';
+import path from 'path';
 
 const isDocker = process.env.DOCKER_BUILD === '1';
 
+/** Empty stubs so webpack doesn't fail on optional @x402/* (Coinbase CDP via wagmi). */
+const x402Stub = path.join(__dirname, 'src/stubs/empty.js');
+
 const nextConfig: NextConfig = {
-  // standalone only for Docker; Vercel uses its own output
   ...(isDocker ? { output: 'standalone' as const } : {}),
+  webpack: (config) => {
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@x402/evm': x402Stub,
+      '@x402/evm/upto/client': x402Stub,
+      '@x402/evm/exact/client': x402Stub,
+      '@x402/core': x402Stub,
+      '@x402/core/client': x402Stub,
+      '@x402/svm': x402Stub,
+      '@x402/svm/exact/client': x402Stub,
+    };
+    return config;
+  },
   async headers() {
     return [
       {
