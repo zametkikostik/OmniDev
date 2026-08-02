@@ -1,8 +1,3 @@
-/**
- * OmniDev LLM Provider Layer
- * OpenRouter, Ollama, OpenAI, Google AI Studio (Gemini), custom
- */
-
 export type LLMProviderType = 'openrouter' | 'ollama' | 'openai' | 'anthropic' | 'google' | 'custom';
 
 export interface LLMConfig {
@@ -32,13 +27,13 @@ export interface LLMProvider {
 }
 
 const DEFAULTS: Record<LLMProviderType, { baseURL: string; model: string }> = {
-  openrouter: { baseURL: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-3.5-sonnet' },
-  ollama: { baseURL: 'http://localhost:11434/v1', model: 'llama3.1' },
-  openai: { baseURL: 'https://api.openai.com/v1', model: 'gpt-4o' },
-  anthropic: { baseURL: 'https://api.anthropic.com/v1', model: 'claude-3-5-sonnet-20241022' },
+  openrouter: { baseURL: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-sonnet-4' },
+  ollama: { baseURL: 'http://localhost:11434/v1', model: 'llama3.3' },
+  openai: { baseURL: 'https://api.openai.com/v1', model: 'gpt-4.1' },
+  anthropic: { baseURL: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-20250514' },
   google: {
     baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
   },
   custom: { baseURL: '', model: '' },
 };
@@ -67,24 +62,22 @@ export class OpenAICompatibleProvider implements LLMProvider {
     if (options.json) body.response_format = { type: 'json_object' };
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (this.config.apiKey) headers['Authorization'] = `Bearer ${this.config.apiKey}`;
-    if (this.config.provider === 'openrouter') {
-      headers['HTTP-Referer'] = 'https://omnidev.app';
-      headers['X-Title'] = 'OmniDev';
-    }
+    if (this.config.apiKey) headers.Authorization = `Bearer ${this.config.apiKey}`;
 
-    const res = await fetch(`${this.config.baseURL}/chat/completions`, {
+    const res = await fetch(`${this.config.baseURL.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
     });
+
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`LLM error (${this.config.provider}): ${res.status} ${text}`);
+      throw new Error(`LLM ${res.status}: ${text.slice(0, 400)}`);
     }
+
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Empty response from LLM');
+    if (typeof content !== 'string') throw new Error('Empty LLM response');
     return content;
   }
 
@@ -99,35 +92,4 @@ export function createLLMProvider(config: LLMConfig): LLMProvider {
   return new OpenAICompatibleProvider(config);
 }
 
-export async function listOllamaModels(baseURL = 'http://localhost:11434'): Promise<string[]> {
-  try {
-    const res = await fetch(`${baseURL}/api/tags`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data.models || []).map((m: any) => m.name);
-  } catch {
-    return [];
-  }
-}
-
-export const GOOGLE_AI_STUDIO_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-2.5-flash-preview-05-20',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
-];
-
-export const OPENROUTER_POPULAR_MODELS = [
-  'anthropic/claude-3.5-sonnet',
-  'anthropic/claude-3-opus',
-  'openai/gpt-4o',
-  'openai/gpt-4o-mini',
-  'google/gemini-pro-1.5',
-  'meta-llama/llama-3.1-70b-instruct',
-  'meta-llama/llama-3.1-405b-instruct',
-  'qwen/qwen-2.5-72b-instruct',
-  'deepseek/deepseek-chat',
-  'mistralai/mistral-large',
-];
+export { GOOGLE_AI_STUDIO_MODELS, OPENROUTER_POPULAR_MODELS } from './models';
