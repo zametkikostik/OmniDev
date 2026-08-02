@@ -1,6 +1,6 @@
 {
   "name": "@omnidev/web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,13 +13,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@webcontainer/api": "^1.5.0",
-    "wagmi": "^2.12.0",
-    "viem": "^2.21.0",
-    "@rainbow-me/rainbowkit": "^2.1.0",
-    "@tanstack/react-query": "^5.56.0",
-    "@x402/evm": "file:./vendor/x402-evm",
-    "@x402/core": "file:./vendor/x402-core",
-    "@x402/svm": "file:./vendor/x402-svm"
+    "viem": "^2.21.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
