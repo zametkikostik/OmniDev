@@ -1,11 +1,9 @@
-export type ProviderPreference = 'openrouter' | 'ollama' | 'openai' | 'google' | 'custom';
-
-export interface OmniDevSettings {
+export type OmniDevSettings = {
   openRouterKey: string;
   openRouterModel: string;
   ollamaBaseURL: string;
   ollamaModel: string;
-  activeProvider: ProviderPreference;
+  activeProvider: 'openrouter' | 'ollama' | 'google' | 'openai' | 'custom';
   openaiKey: string;
   googleApiKey: string;
   googleModel: string;
@@ -13,19 +11,19 @@ export interface OmniDevSettings {
   customModel: string;
   customKey: string;
   credits: number;
-}
+};
 
 const STORAGE_KEY = 'omnidev_settings_v1';
 
 export const DEFAULT_SETTINGS: OmniDevSettings = {
   openRouterKey: '',
-  openRouterModel: 'anthropic/claude-3.5-sonnet',
+  openRouterModel: 'anthropic/claude-sonnet-4',
   ollamaBaseURL: 'http://localhost:11434',
-  ollamaModel: 'llama3.1',
+  ollamaModel: 'llama3.3',
   activeProvider: 'openrouter',
   openaiKey: '',
   googleApiKey: '',
-  googleModel: 'gemini-2.0-flash',
+  googleModel: 'gemini-2.5-flash',
   customBaseURL: '',
   customModel: '',
   customKey: '',
@@ -55,11 +53,7 @@ export function saveSettings(settings: Partial<OmniDevSettings>): OmniDevSetting
 export function settingsToLLMConfig(s: OmniDevSettings) {
   switch (s.activeProvider) {
     case 'openrouter':
-      return {
-        provider: 'openrouter' as const,
-        apiKey: s.openRouterKey,
-        model: s.openRouterModel,
-      };
+      return { provider: 'openrouter' as const, apiKey: s.openRouterKey, model: s.openRouterModel };
     case 'ollama':
       return {
         provider: 'ollama' as const,
@@ -68,16 +62,12 @@ export function settingsToLLMConfig(s: OmniDevSettings) {
         apiKey: 'ollama',
       };
     case 'openai':
-      return {
-        provider: 'openai' as const,
-        apiKey: s.openaiKey,
-        model: 'gpt-4o',
-      };
+      return { provider: 'openai' as const, apiKey: s.openaiKey, model: 'gpt-4.1' };
     case 'google':
       return {
         provider: 'google' as const,
         apiKey: s.googleApiKey,
-        model: s.googleModel || 'gemini-2.0-flash',
+        model: s.googleModel || 'gemini-2.5-flash',
         baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
       };
     case 'custom':
@@ -88,10 +78,6 @@ export function settingsToLLMConfig(s: OmniDevSettings) {
         apiKey: s.customKey,
       };
     default:
-      return {
-        provider: 'openrouter' as const,
-        apiKey: s.openRouterKey,
-        model: s.openRouterModel,
-      };
+      return { provider: 'openrouter' as const, apiKey: s.openRouterKey, model: s.openRouterModel };
   }
 }
