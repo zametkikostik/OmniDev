@@ -3,6 +3,9 @@ import { rateLimitAsync, getClientIp } from '@/lib/redis-rate-limit';
 import { createLLMProvider } from '@/lib/llm';
 import { buildLLMConfig, needsApiKey } from '@/lib/build-llm-config';
 import { moderatePrompt } from '@/lib/prompt-guard';
+import { creditsFor } from '@/lib/usage-billing';
+import { db } from '@/lib/db';
+import { CREDIT_COSTS } from '@/lib/credits';
 
 const SYSTEM_PROMPT = `You are OmniDev, an expert full-stack engineer.
 Generate a complete Next.js 15 (App Router) + TypeScript + Tailwind CSS project.
@@ -23,7 +26,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { prompt, settings } = body as { prompt: string; settings?: any };
+    const { prompt, settings, address } = body as {
+      prompt: string;
+      settings?: any;
+      address?: string;
+    };
     if (!prompt) {
       return NextResponse.json({ error: 'prompt required' }, { status: 400 });
     }
@@ -66,10 +73,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Generated project is incomplete' }, { status: 500 });
     }
 
+    let creditsLeft: number | undefined;
+    if (address) {
+      try {
+        const user = await db.getOrCreateUserByWallet(address);
+        const cost = creditsFor('generate');
+        const ded = await db.deductCredits(user.id, cost);
+        await db.recordUsage(user.id, 'generate', cost);
+        creditsLeft = ded.credits;
+      } catch (e) {
+        console.warn('[generate] usage', e);
+      }
+    }
+
     return NextResponse.json({
       files: parsed.files,
       description: parsed.description || 'Проект создан',
       demo: false,
+      credits: creditsLeft,
+      cost: CREDIT_COSTS.generate,
     });
   } catch (err: any) {
     console.error('[generate]', err);
