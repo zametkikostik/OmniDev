@@ -16,23 +16,29 @@ model User {
   updatedAt     DateTime  @updatedAt
   projects      Project[]
   payments      Payment[]
+  memberships   WorkspaceMember[]
+  usage         UsageEvent[]
 }
 
 model Project {
   id          String   @id @default(cuid())
   userId      String?
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   name        String
   description String   @default("")
   prompt      String   @default("")
   files       Json
   shareSlug   String?  @unique
   isPublic    Boolean  @default(false)
+  previewUrl  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId])
   @@index([shareSlug])
+  @@index([workspaceId])
 }
 
 model Payment {
@@ -49,4 +55,54 @@ model Payment {
 
   @@index([userId])
   @@index([txHash])
+}
+
+model Workspace {
+  id        String            @id @default(cuid())
+  name      String
+  slug      String            @unique
+  ownerId   String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  members   WorkspaceMember[]
+  projects  Project[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String    @default("member")
+  createdAt   DateTime  @default(now())
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model UsageEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  cost      Int
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model GenerationJob {
+  id        String   @id @default(cuid())
+  status    String   @default("queued")
+  prompt    String
+  result    Json?
+  error     String?
+  userId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
 }
