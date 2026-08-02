@@ -1,24 +1,17 @@
+/**
+ * Lightweight observability — console only (no optional Sentry package).
+ */
+
 type Level = 'info' | 'warn' | 'error';
 
 export async function captureException(err: unknown, context?: Record<string, unknown>) {
-  console.error('[omnidev]', err, context);
-  try {
-    const Sentry = await import('@sentry/nextjs').catch(() => null);
-    if (Sentry) {
-      if (context) Sentry.setContext('extra', context);
-      Sentry.captureException(err);
-    }
-  } catch {}
+  console.error('[omnidev]', err, context ?? '');
 }
 
 export async function captureMessage(message: string, level: Level = 'info') {
   if (level === 'error') console.error('[omnidev]', message);
   else if (level === 'warn') console.warn('[omnidev]', message);
   else console.log('[omnidev]', message);
-  try {
-    const Sentry = await import('@sentry/nextjs').catch(() => null);
-    if (Sentry) Sentry.captureMessage(message, level);
-  } catch {}
 }
 
 export function withTiming<T>(name: string, fn: () => Promise<T>): Promise<T> {
@@ -29,6 +22,7 @@ export function withTiming<T>(name: string, fn: () => Promise<T>): Promise<T> {
       return result;
     })
     .catch(async (err) => {
+      console.error(`[timing] ${name} failed after ${Date.now() - start}ms`);
       await captureException(err, { operation: name });
       throw err;
     });
