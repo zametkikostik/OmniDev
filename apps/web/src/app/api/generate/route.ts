@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { rateLimitAsync, getClientIp } from '@/lib/redis-rate-limit';
 import { createLLMProvider } from '@/lib/llm';
 import { buildLLMConfig, needsApiKey } from '@/lib/build-llm-config';
+import { moderatePrompt } from '@/lib/prompt-guard';
 
 const SYSTEM_PROMPT = `You are OmniDev, an expert full-stack engineer.
 Generate a complete Next.js 15 (App Router) + TypeScript + Tailwind CSS project.
@@ -27,12 +28,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'prompt required' }, { status: 400 });
     }
 
+    const guard = moderatePrompt(prompt);
+    if (!guard.ok) {
+      return NextResponse.json({ error: guard.reason }, { status: 400 });
+    }
+
     const llmConfig = buildLLMConfig(settings);
 
     if (needsApiKey(llmConfig)) {
       return NextResponse.json({
         files: getDemoProject(prompt),
-        description: `Демо (добавь OpenRouter или Google AI Studio в Настройках): ${prompt}`,
+        description: `Демо-режим (платформа ещё без API-ключа админа): ${prompt}`,
         demo: true,
       });
     }
@@ -97,6 +103,6 @@ function getDemoProject(prompt: string): Record<string, string> {
     'postcss.config.mjs': "export default { plugins: { tailwindcss: {}, autoprefixer: {} } };\n",
     'app/globals.css': '@tailwind base;\n@tailwind components;\n@tailwind utilities;\nbody { background: #09090b; color: #fafafa; }\n',
     'app/layout.tsx': "import './globals.css';\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (<html lang=\"ru\"><body>{children}</body></html>);\n}\n",
-    'app/page.tsx': `'use client';\nexport default function Home() {\n  return (\n    <main className="min-h-screen flex items-center justify-center p-8">\n      <div className="max-w-lg text-center">\n        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">OmniDev Demo</h1>\n        <p className="text-zinc-400 mb-6">Запрос: «${safe}»</p>\n        <p className="text-sm text-zinc-600">Добавь OpenRouter / Google AI Studio key в Настройках.</p>\n      </div>\n    </main>\n  );\n}\n`,
+    'app/page.tsx': `'use client';\nexport default function Home() {\n  return (\n    <main className="min-h-screen flex items-center justify-center p-8">\n      <div className="max-w-lg text-center">\n        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">OmniDev Demo</h1>\n        <p className="text-zinc-400 mb-6">Запрос: «${safe}»</p>\n        <p className="text-sm text-zinc-600">Полная генерация включится после настройки платформы администратором.</p>\n      </div>\n    </main>\n  );\n}\n`,
   };
 }
