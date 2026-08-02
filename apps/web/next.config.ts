@@ -2,9 +2,8 @@ import type { NextConfig } from 'next';
 import path from 'path';
 
 const isDocker = process.env.DOCKER_BUILD === '1';
-
-/** Stub path for optional @x402/* (pulled by wagmi → Coinbase Base Account). */
-const x402Stub = path.join(process.cwd(), 'src/stubs/empty.js');
+const stub = (name: string) => path.join(process.cwd(), 'vendor', name, 'index.js');
+const stubClient = (name: string) => path.join(process.cwd(), 'vendor', name, 'client.js');
 
 const nextConfig: NextConfig = {
   ...(isDocker ? { output: 'standalone' as const } : {}),
@@ -12,13 +11,13 @@ const nextConfig: NextConfig = {
     config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      '@x402/evm': x402Stub,
-      '@x402/evm/upto/client': x402Stub,
-      '@x402/evm/exact/client': x402Stub,
-      '@x402/core': x402Stub,
-      '@x402/core/client': x402Stub,
-      '@x402/svm': x402Stub,
-      '@x402/svm/exact/client': x402Stub,
+      '@x402/evm': stub('x402-evm'),
+      '@x402/evm/upto/client': stubClient('x402-evm'),
+      '@x402/evm/exact/client': stubClient('x402-evm'),
+      '@x402/core': stub('x402-core'),
+      '@x402/core/client': stubClient('x402-core'),
+      '@x402/svm': stub('x402-svm'),
+      '@x402/svm/exact/client': stubClient('x402-svm'),
     };
     return config;
   },

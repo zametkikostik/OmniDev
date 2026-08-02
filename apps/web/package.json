@@ -16,7 +16,10 @@
     "wagmi": "^2.12.0",
     "viem": "^2.21.0",
     "@rainbow-me/rainbowkit": "^2.1.0",
-    "@tanstack/react-query": "^5.56.0"
+    "@tanstack/react-query": "^5.56.0",
+    "@x402/evm": "file:./vendor/x402-evm",
+    "@x402/core": "file:./vendor/x402-core",
+    "@x402/svm": "file:./vendor/x402-svm"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

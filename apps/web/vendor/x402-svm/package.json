@@ -1,0 +1,9 @@
+{
+  "name": "@x402/svm",
+  "version": "0.0.0-stub",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./exact/client": "./client.js"
+  }
+}

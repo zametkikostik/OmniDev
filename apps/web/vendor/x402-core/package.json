@@ -1,0 +1,9 @@
+{
+  "name": "@x402/core",
+  "version": "0.0.0-stub",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  }
+}

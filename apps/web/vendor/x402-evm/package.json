@@ -1,0 +1,10 @@
+{
+  "name": "@x402/evm",
+  "version": "0.0.0-stub",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./upto/client": "./client.js",
+    "./exact/client": "./client.js"
+  }
+}
