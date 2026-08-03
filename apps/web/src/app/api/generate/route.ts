@@ -3,6 +3,7 @@ import { rateLimitAsync, getClientIp } from '@/lib/redis-rate-limit';
 import { createLLMProvider } from '@/lib/llm';
 import { buildLLMConfig, needsApiKey } from '@/lib/build-llm-config';
 import { moderatePrompt } from '@/lib/prompt-guard';
+import { audit } from '@/lib/audit-log';
 import { creditsFor } from '@/lib/usage-billing';
 import { db } from '@/lib/db';
 import { CREDIT_COSTS } from '@/lib/credits';
@@ -37,8 +38,13 @@ export async function POST(req: NextRequest) {
 
     const guard = moderatePrompt(prompt);
     if (!guard.ok) {
+      audit('moderation', guard.code || 'block', {
+        ip,
+        meta: { reason: guard.reason, soft: !!guard.soft, preview: prompt.slice(0, 80) },
+      });
       return NextResponse.json({ error: guard.reason }, { status: 400 });
     }
+    audit('generate', 'start', { ip, meta: { len: prompt.length } });
 
     const llmConfig = buildLLMConfig(settings);
 
