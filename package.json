@@ -1,15 +1,15 @@
 {
   "name": "omnidev",
-  "version": "0.8.0",
+  "version": "1.0.1",
   "private": true,
+  "description": "OmniDev — AI full-stack builder. Production app: apps/web",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "npm run dev --workspace=@omnidev/web",
     "build": "npm run build --workspace=@omnidev/web",
     "start": "npm run start --workspace=@omnidev/web",
-    "db:generate": "npm run generate --workspace=@omnidev/db",
-    "db:push": "npm run push --workspace=@omnidev/db",
+    "test:e2e": "npm run test:e2e --workspace=@omnidev/web",
     "health": "curl -s http://localhost:3000/api/health"
   },
-  "engines": { "node": ">=20" }
+  "engines": { "node": ">=20.0.0" }
 }

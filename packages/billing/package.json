@@ -1,0 +1,8 @@
+{
+  "name": "@omnidev/billing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Legacy stub. Production: apps/web billing routes",
+  "main": "src/index.ts",
+  "scripts": { "build": "echo stub" }
+}
