@@ -33,7 +33,9 @@ export default function WorkspacePage() {
     }
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+  }, []);
 
   async function createWorkspace() {
     if (!name.trim()) return;
@@ -42,14 +44,17 @@ export default function WorkspacePage() {
       const res = await fetch('/api/workspaces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), ownerWallet: getSessionWallet() || undefined }),
+        body: JSON.stringify({
+          name: name.trim(),
+          ownerWallet: getSessionWallet() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       setName('');
       setActiveWorkspaceId(data.workspace.id);
       setActiveId(data.workspace.id);
-      setMsg(`\u0421\u043e\u0437\u0434\u0430\u043d\u043e: ${data.workspace.name}`);
+      setMsg(`Создано: ${data.workspace.name}`);
       await refresh();
     } catch (e: any) {
       setMsg(e.message);
@@ -65,12 +70,16 @@ export default function WorkspacePage() {
       const res = await fetch('/api/workspaces/members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspaceId: inviteWsId, walletAddress: inviteWallet.trim(), role: 'member' }),
+        body: JSON.stringify({
+          workspaceId: inviteWsId,
+          walletAddress: inviteWallet.trim(),
+          role: 'member',
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       setInviteWallet('');
-      setMsg('\u0423\u0447\u0430\u0441\u0442\u043d\u0438\u043a \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d');
+      setMsg('Участник добавлен');
       await refresh();
     } catch (e: any) {
       setMsg(e.message);
@@ -84,51 +93,89 @@ export default function WorkspacePage() {
       <div className="max-w-lg mx-auto px-6 py-10 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">\u041a\u043e\u043c\u0430\u043d\u0434\u044b</h1>
-            <p className="text-sm text-zinc-500 mt-1">Workspace \u00b7 invite</p>
+            <h1 className="text-2xl font-semibold">Команды</h1>
+            <p className="text-sm text-zinc-500 mt-1">Workspace · invite</p>
           </div>
-          <a href="/" className="text-sm text-violet-400">\u2190 \u0427\u0430\u0442</a>
+          <a href="/" className="text-sm text-violet-400">
+            ← Чат
+          </a>
         </div>
 
         <section className="rounded-2xl border border-zinc-800 p-5 space-y-3">
-          <h2 className="text-sm text-zinc-400">\u0421\u043e\u0437\u0434\u0430\u0442\u044c</h2>
+          <h2 className="text-sm text-zinc-400">Создать</h2>
           <div className="flex gap-2">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435"
-              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm" />
-            <button onClick={createWorkspace} disabled={loading || !name.trim()}
-              className="px-4 py-2 rounded-xl bg-violet-600 text-sm disabled:opacity-40">OK</button>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Название"
+              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm"
+            />
+            <button
+              onClick={createWorkspace}
+              disabled={loading || !name.trim()}
+              className="px-4 py-2 rounded-xl bg-violet-600 text-sm disabled:opacity-40"
+            >
+              OK
+            </button>
           </div>
         </section>
 
         <section className="rounded-2xl border border-zinc-800 p-5 space-y-2">
-          <h2 className="text-sm text-zinc-400 mb-2">\u0421\u043f\u0438\u0441\u043e\u043a</h2>
+          <h2 className="text-sm text-zinc-400 mb-2">Список</h2>
           {list.map((ws) => (
-            <button key={ws.id} type="button"
-              onClick={() => { setActiveWorkspaceId(ws.id); setActiveId(ws.id); setMsg(ws.name); }}
+            <button
+              key={ws.id}
+              type="button"
+              onClick={() => {
+                setActiveWorkspaceId(ws.id);
+                setActiveId(ws.id);
+                setMsg(ws.name);
+              }}
               className={`w-full text-left rounded-xl border px-3 py-3 ${
                 activeId === ws.id ? 'border-violet-500 bg-violet-500/10' : 'border-zinc-800'
-              }`}>
+              }`}
+            >
               <div className="flex justify-between text-sm">
                 <span className="font-medium">{ws.name}</span>
-                {activeId === ws.id && <span className="text-[10px] text-violet-400">active</span>}
+                {activeId === ws.id && (
+                  <span className="text-[10px] text-violet-400">active</span>
+                )}
               </div>
-              <p className="text-[11px] text-zinc-500">/{ws.slug} \u00b7 {ws.members?.length || 0}</p>
+              <p className="text-[11px] text-zinc-500">
+                /{ws.slug} · {ws.members?.length || 0}
+              </p>
             </button>
           ))}
         </section>
 
         <section className="rounded-2xl border border-zinc-800 p-5 space-y-3">
           <h2 className="text-sm text-zinc-400">Invite</h2>
-          <select value={inviteWsId} onChange={(e) => setInviteWsId(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm">
+          <select
+            value={inviteWsId}
+            onChange={(e) => setInviteWsId(e.target.value)}
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm"
+          >
             <option value="">...</option>
-            {list.map((ws) => <option key={ws.id} value={ws.id}>{ws.name}</option>)}
+            {list.map((ws) => (
+              <option key={ws.id} value={ws.id}>
+                {ws.name}
+              </option>
+            ))}
           </select>
           <div className="flex gap-2">
-            <input value={inviteWallet} onChange={(e) => setInviteWallet(e.target.value)} placeholder="0x..."
-              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm font-mono" />
-            <button onClick={invite} disabled={loading || !inviteWsId || !inviteWallet.trim()}
-              className="px-4 py-2 rounded-xl border border-zinc-600 text-sm disabled:opacity-40">Invite</button>
+            <input
+              value={inviteWallet}
+              onChange={(e) => setInviteWallet(e.target.value)}
+              placeholder="0x..."
+              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm font-mono"
+            />
+            <button
+              onClick={invite}
+              disabled={loading || !inviteWsId || !inviteWallet.trim()}
+              className="px-4 py-2 rounded-xl border border-zinc-600 text-sm disabled:opacity-40"
+            >
+              Invite
+            </button>
           </div>
         </section>
 
