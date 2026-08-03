@@ -7,16 +7,39 @@ import { audit } from '@/lib/audit-log';
 import { creditsFor } from '@/lib/usage-billing';
 import { db } from '@/lib/db';
 import { CREDIT_COSTS } from '@/lib/credits';
+import {
+  validateProjectFiles,
+  ensureMinimalConfigs,
+  parseFilesJson,
+} from '@/lib/project-validate';
+
+export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `You are OmniDev, an expert full-stack engineer.
 Generate a complete Next.js 15 (App Router) + TypeScript + Tailwind CSS project.
-Return ONLY valid JSON:
+
+Rules:
+1. Return ONLY valid JSON:
 {
-  "files": { "package.json": "...", "app/page.tsx": "...", ... },
-  "description": "short Russian description"
+  "files": {
+    "package.json": "...",
+    "tsconfig.json": "...",
+    "next.config.ts": "...",
+    "tailwind.config.ts": "...",
+    "postcss.config.mjs": "...",
+    "app/layout.tsx": "...",
+    "app/page.tsx": "...",
+    "app/globals.css": "..."
+  },
+  "description": "short description"
 }
-Include package.json, tsconfig, next.config, tailwind, postcss, app/layout, app/page, app/globals.css.
-Dark UI by default. No markdown fences.`;
+2. package.json must include next, react, react-dom, typescript, tailwindcss, postcss, autoprefixer, lucide-react
+3. App Router only. Dark UI. No markdown fences.`;
+
+const FIX_PROMPT = `Fix the project JSON. Missing or invalid files were reported.
+Return ONLY valid JSON { "files": { ... }, "description": "..." } with ALL required files:
+package.json, app/page.tsx, app/layout.tsx, app/globals.css, tsconfig.json, next.config.ts, tailwind.config.ts, postcss.config.mjs
+No markdown.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +55,7 @@ export async function POST(req: NextRequest) {
       settings?: any;
       address?: string;
     };
+
     if (!prompt) {
       return NextResponse.json({ error: 'prompt required' }, { status: 400 });
     }
@@ -51,86 +75,134 @@ export async function POST(req: NextRequest) {
     if (needsApiKey(llmConfig)) {
       return NextResponse.json({
         files: getDemoProject(prompt),
-        description: `Демо-режим (платформа ещё без API-ключа админа): ${prompt}`,
+        description: `Демо-режим: ${prompt}`,
         demo: true,
       });
     }
 
     const provider = createLLMProvider(llmConfig);
-    const raw = await provider.complete({
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Создай приложение: ${prompt}` },
-      ],
-      json: true,
-      temperature: 0.2,
-      maxTokens: 12000,
-    });
 
-    let parsed: { files: Record<string, string>; description: string };
-    try {
-      const cleaned = raw.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: 'LLM returned invalid JSON', raw: raw.slice(0, 500) }, { status: 500 });
+    async function runOnce(system: string, user: string) {
+      const raw = await provider.complete({
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        json: true,
+        temperature: 0.2,
+        maxTokens: 12000,
+      });
+      return parseFilesJson(raw);
     }
 
-    if (!parsed.files || !parsed.files['package.json']) {
-      return NextResponse.json({ error: 'Generated project is incomplete' }, { status: 500 });
+    let parsed = await runOnce(SYSTEM_PROMPT, `Создай приложение: ${prompt}`);
+    let healAttempts = 0;
+
+    if (parsed.error || !parsed.files) {
+      healAttempts++;
+      audit('generate', 'retry_json', { ip });
+      parsed = await runOnce(
+        FIX_PROMPT,
+        `Original request: ${prompt}\nPrevious error: invalid JSON. Produce complete project JSON.`
+      );
+    }
+
+    let files = parsed.files || {};
+    files = ensureMinimalConfigs(files);
+    let validation = validateProjectFiles(files);
+
+    if (!validation.ok) {
+      healAttempts++;
+      audit('generate', 'retry_validate', {
+        ip,
+        meta: { reason: validation.reason },
+      });
+      parsed = await runOnce(
+        FIX_PROMPT,
+        `Original: ${prompt}\nValidation failed: ${validation.reason}\nMissing: ${(validation as any).missing?.join(', ') || ''}`
+      );
+      files = ensureMinimalConfigs(parsed.files || {});
+      validation = validateProjectFiles(files);
+    }
+
+    if (!validation.ok) {
+      audit('generate', 'fail_validate', { ip, meta: { reason: validation.reason } });
+      return NextResponse.json(
+        { error: validation.reason, healAttempts },
+        { status: 500 }
+      );
     }
 
     let creditsLeft: number | undefined;
+    let charged = 0;
     if (address) {
       try {
         const user = await db.getOrCreateUserByWallet(address);
         const cost = creditsFor('generate');
         const ded = await db.deductCredits(user.id, cost);
-        await db.recordUsage(user.id, 'generate', cost);
-        creditsLeft = ded.credits;
+        if (ded.ok) {
+          charged = cost;
+          await db.recordUsage(user.id, 'generate', cost);
+          creditsLeft = ded.credits;
+        } else {
+          creditsLeft = ded.credits;
+        }
       } catch (e) {
         console.warn('[generate] usage', e);
       }
     }
 
+    audit('generate', 'success', {
+      ip,
+      meta: { healAttempts, charged, files: Object.keys(files).length },
+    });
+
     return NextResponse.json({
-      files: parsed.files,
+      files,
       description: parsed.description || 'Проект создан',
       demo: false,
       credits: creditsLeft,
-      cost: CREDIT_COSTS.generate,
+      cost: charged || CREDIT_COSTS.generate,
+      charged,
+      healAttempts,
     });
   } catch (err: any) {
     console.error('[generate]', err);
-    return NextResponse.json({ error: err.message || 'Generation failed' }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || 'Generation failed' },
+      { status: 500 }
+    );
   }
 }
 
 function getDemoProject(prompt: string): Record<string, string> {
   const safe = prompt.replace(/"/g, "'").slice(0, 120);
-  return {
-    'package.json': JSON.stringify({
-      name: 'omnidev-demo', version: '0.1.0', private: true,
-      scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
-      dependencies: { next: '15.0.0', react: '19.0.0', 'react-dom': '19.0.0', 'lucide-react': '^0.400.0' },
-      devDependencies: {
-        typescript: '^5.6.0', '@types/react': '^19.0.0', '@types/node': '^22.0.0',
-        tailwindcss: '^3.4.0', postcss: '^8.4.0', autoprefixer: '^10.4.0',
+  return ensureMinimalConfigs({
+    'package.json': JSON.stringify(
+      {
+        name: 'omnidev-demo',
+        version: '0.1.0',
+        private: true,
+        scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+        dependencies: {
+          next: '15.0.0',
+          react: '19.0.0',
+          'react-dom': '19.0.0',
+          'lucide-react': '^0.400.0',
+        },
+        devDependencies: {
+          typescript: '^5.6.0',
+          '@types/react': '^19.0.0',
+          '@types/node': '^22.0.0',
+          tailwindcss: '^3.4.0',
+          postcss: '^8.4.0',
+          autoprefixer: '^10.4.0',
+        },
       },
-    }, null, 2),
-    'tsconfig.json': JSON.stringify({
-      compilerOptions: {
-        target: 'ES2017', lib: ['dom', 'dom.iterable', 'esnext'], allowJs: true, skipLibCheck: true,
-        strict: true, noEmit: true, esModuleInterop: true, module: 'esnext',
-        moduleResolution: 'bundler', resolveJsonModule: true, isolatedModules: true,
-        jsx: 'preserve', incremental: true, plugins: [{ name: 'next' }], paths: { '@/*': ['./*'] },
-      },
-      include: ['next-env.d.ts', '**/*.ts', '**/*.tsx'], exclude: ['node_modules'],
-    }, null, 2),
-    'next.config.ts': "import type { NextConfig } from 'next';\nconst nextConfig: NextConfig = {};\nexport default nextConfig;\n",
-    'tailwind.config.ts': "import type { Config } from 'tailwindcss';\nexport default { content: ['./app/**/*.{js,ts,jsx,tsx}'], theme: { extend: {} }, plugins: [] } satisfies Config;\n",
-    'postcss.config.mjs': "export default { plugins: { tailwindcss: {}, autoprefixer: {} } };\n",
-    'app/globals.css': '@tailwind base;\n@tailwind components;\n@tailwind utilities;\nbody { background: #09090b; color: #fafafa; }\n',
-    'app/layout.tsx': "import './globals.css';\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (<html lang=\"ru\"><body>{children}</body></html>);\n}\n",
-    'app/page.tsx': `'use client';\nexport default function Home() {\n  return (\n    <main className="min-h-screen flex items-center justify-center p-8">\n      <div className="max-w-lg text-center">\n        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">OmniDev Demo</h1>\n        <p className="text-zinc-400 mb-6">Запрос: «${safe}»</p>\n        <p className="text-sm text-zinc-600">Полная генерация включится после настройки платформы администратором.</p>\n      </div>\n    </main>\n  );\n}\n`,
-  };
+      null,
+      2
+    ),
+    'app/layout.tsx': `import './globals.css';\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (<html lang="en"><body>{children}</body></html>);\n}\n`,
+    'app/page.tsx': `'use client';\nexport default function Home() {\n  return (\n    <main className="min-h-screen flex items-center justify-center p-8">\n      <div className="max-w-lg text-center">\n        <h1 className="text-4xl font-bold mb-4 text-violet-400">OmniDev Demo</h1>\n        <p className="text-zinc-400">«${safe}»</p>\n      </div>\n    </main>\n  );\n}\n`,
+  });
 }
