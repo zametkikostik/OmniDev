@@ -78,6 +78,9 @@ export const memoryStore = {
   recordUsage(userId: string | null, action: string, cost: number) {
     mem.usage.push({ userId, action, cost, at: Date.now() });
   },
+  listUsage() {
+    return [...mem.usage].reverse();
+  },
   createWorkspace(name: string, ownerId: string | null, ownerWallet?: string) {
     const slug = (name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24) || 'ws') + '-' + Math.random().toString(36).slice(2, 6);
     const ws: MemWorkspace = {
@@ -196,6 +199,9 @@ export async function ensureDb(): Promise<boolean> {
 }
 
 export const db = {
+  listUsage() {
+    return memoryStore.listUsage();
+  },
   async getOrCreateUserByWallet(wallet: string) {
     await ensureDb();
     if (!hasDatabase() || !sql) return memoryStore.getOrCreateUserByWallet(wallet);
