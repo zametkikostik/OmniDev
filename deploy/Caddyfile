@@ -1,0 +1,9 @@
+:80 {
+  reverse_proxy web:3000
+}
+
+:8080 {
+  root * /srv/preview
+  file_server
+  try_files {path}/index.html {path} /index.html
+}
