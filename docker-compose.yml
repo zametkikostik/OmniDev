@@ -14,12 +14,20 @@ services:
       - ADMIN_SECRET=${ADMIN_SECRET:-change-me}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       - PREVIEW_BASE_URL=${PREVIEW_BASE_URL:-http://localhost:8080}
+      - NEXT_PUBLIC_TREASURY_ADDRESS=${NEXT_PUBLIC_TREASURY_ADDRESS:-}
     ports:
       - "3000:3000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
 
   postgres:
@@ -32,6 +40,11 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnidev -d omnidev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   caddy:
@@ -45,7 +58,8 @@ services:
       - ./deploy/preview:/srv/preview
       - caddy_data:/data
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

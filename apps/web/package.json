@@ -1,12 +1,13 @@
 {
   "name": "@omnidev/web",
-  "version": "1.0.2",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:unit": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "next": "^15.0.0",
@@ -25,5 +26,8 @@
     "postcss": "^8.4.0",
     "autoprefixer": "^10.4.0",
     "@playwright/test": "^1.48.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
