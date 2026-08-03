@@ -1,54 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PACKS: Record<string, { credits: number; priceCents: number; name: string }> = {
-  starter: { credits: 100, priceCents: 900, name: 'OmniDev Starter (100 credits)' },
-  pro: { credits: 500, priceCents: 3900, name: 'OmniDev Pro (500 credits)' },
-  team: { credits: 2000, priceCents: 12900, name: 'OmniDev Team (2000 credits)' },
-};
-
 export async function POST(req: NextRequest) {
+  const key = process.env.STRIPE_SECRET_KEY;
+  const price = process.env.STRIPE_PRICE_ID;
+  if (!key || !price) {
+    return NextResponse.json(
+      { error: 'Stripe not configured', hint: 'Set STRIPE_SECRET_KEY and STRIPE_PRICE_ID' },
+      { status: 501 }
+    );
+  }
+
   try {
-    const { planId, walletAddress, successUrl, cancelUrl } = await req.json();
-    const pack = PACKS[planId];
-    if (!pack) return NextResponse.json({ error: 'Unknown plan' }, { status: 400 });
-
-    const secret = process.env.STRIPE_SECRET_KEY;
-    if (!secret) {
-      return NextResponse.json({
-        demo: true,
-        message: 'STRIPE_SECRET_KEY not set. Add it to enable real Stripe checkout.',
-        url: null,
-        pack,
-      });
-    }
-
-    const origin = req.headers.get('origin') || 'http://localhost:3000';
-    const params = new URLSearchParams();
-    params.append('mode', 'payment');
-    params.append('success_url', successUrl || `${origin}/billing?success=1&plan=${planId}`);
-    params.append('cancel_url', cancelUrl || `${origin}/billing?cancel=1`);
-    params.append('line_items[0][price_data][currency]', 'usd');
-    params.append('line_items[0][price_data][unit_amount]', String(pack.priceCents));
-    params.append('line_items[0][price_data][product_data][name]', pack.name);
-    params.append('line_items[0][quantity]', '1');
-    params.append('metadata[planId]', planId);
-    params.append('metadata[credits]', String(pack.credits));
-    if (walletAddress) params.append('metadata[wallet]', walletAddress);
-
-    const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    const body = await req.json().catch(() => ({}));
+    const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${secret}`,
+        Authorization: `Bearer ${key}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: params.toString(),
+      body: new URLSearchParams({
+        mode: 'payment',
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/billing?ok=1`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/billing?cancel=1`,
+        'line_items[0][price]': price,
+        'line_items[0][quantity]': '1',
+        client_reference_id: body.address || '',
+      }),
     });
-    const session = await stripeRes.json();
-    if (!stripeRes.ok) {
-      return NextResponse.json({ error: session.error?.message || 'Stripe error' }, { status: 500 });
+    const data = await res.json();
+    if (!res.ok) {
+      return NextResponse.json({ error: data.error?.message || 'Stripe error' }, { status: 500 });
     }
-    return NextResponse.json({ url: session.url, sessionId: session.id });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ url: data.url, id: data.id });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

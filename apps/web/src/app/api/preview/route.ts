@@ -1,45 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { randomBytes } from 'crypto';
+import { rateLimitAsync, getClientIp } from '@/lib/redis-rate-limit';
+import { audit } from '@/lib/audit-log';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { projectId, files, name, userId } = body as {
-      projectId?: string;
-      files: Record<string, string>;
-      name?: string;
-      userId?: string;
-    };
-    if (!files || typeof files !== 'object') {
-      return NextResponse.json({ error: 'files required' }, { status: 400 });
+    const ip = getClientIp(req);
+    const rl = await rateLimitAsync(`preview:${ip}`, 10, 60);
+    if (!rl.ok) {
+      return NextResponse.json({ error: 'Rate limit' }, { status: 429 });
     }
 
-    const slug = randomBytes(6).toString('hex');
-    const project = await db.saveProject({
-      id: projectId,
-      userId: userId || null,
-      name: name || 'Preview',
-      files,
-      shareSlug: slug,
-      isPublic: true,
-      previewUrl: `/p/${slug}`,
+    const body = await req.json().catch(() => ({}));
+    const { projectId, files, name } = body as {
+      projectId?: string;
+      files?: Record<string, string>;
+      name?: string;
+    };
+
+    const hook = process.env.VERCEL_DEPLOY_HOOK_URL;
+    if (hook) {
+      const res = await fetch(hook, { method: 'POST' });
+      const ok = res.ok;
+      audit('job', 'preview_hook', { ip, meta: { ok, projectId } });
+      return NextResponse.json({
+        mode: 'vercel_hook',
+        ok,
+        message: ok ? 'Deploy hook triggered' : 'Deploy hook failed',
+      });
+    }
+
+    const slug =
+      (name || projectId || 'app')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .slice(0, 32) +
+      '-' +
+      Math.random().toString(36).slice(2, 6);
+
+    const base = process.env.PREVIEW_BASE_URL || '';
+    const url = base ? `${base.replace(/\/$/, '')}/${slug}` : null;
+
+    audit('job', 'preview_recipe', {
+      ip,
+      meta: { slug, fileCount: files ? Object.keys(files).length : 0 },
     });
 
-    const hook = process.env.PREVIEW_HOOK_URL;
-    if (hook) {
-      fetch(hook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: project.id, slug, files }),
-      }).catch(() => {});
-    }
-
     return NextResponse.json({
-      previewId: project.id,
+      mode: 'vds_recipe',
       slug,
-      previewPath: `/p/${slug}`,
-      message: 'Превью по публичной ссылке',
+      url,
+      message: url
+        ? `Preview URL (после синхронизации на VDS): ${url}`
+        : 'Установи PREVIEW_BASE_URL или VERCEL_DEPLOY_HOOK_URL',
+      filesCount: files ? Object.keys(files).length : 0,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

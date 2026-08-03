@@ -1,21 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, ensureDb } from '@/lib/db';
+import { db } from '@/lib/db';
 import { CREDIT_COSTS } from '@/lib/credits';
 
 export async function GET(req: NextRequest) {
   const address = req.nextUrl.searchParams.get('address');
-  if (!address) {
-    return NextResponse.json({ costs: CREDIT_COSTS });
-  }
+  let credits: number | null = null;
+  let history: { action: string; cost: number; at: number }[] = [];
+
   try {
-    await ensureDb();
-    const user = await db.getOrCreateUserByWallet(address);
-    return NextResponse.json({
-      credits: user.credits,
-      costs: CREDIT_COSTS,
-      userId: user.id,
-    });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    if (address) {
+      const user = await db.getOrCreateUserByWallet(address);
+      credits = user.credits;
+    }
+    const mem = (db as any).listUsage?.() || [];
+    history = mem.slice(-100);
+  } catch {}
+
+  const byDay: Record<string, number> = {};
+  for (const h of history) {
+    const day = new Date(h.at).toISOString().slice(0, 10);
+    byDay[day] = (byDay[day] || 0) + (h.cost || 0);
   }
+
+  return NextResponse.json({
+    credits,
+    costs: CREDIT_COSTS,
+    history: history.slice(-50),
+    byDay,
+    neon: !!process.env.DATABASE_URL,
+  });
 }
