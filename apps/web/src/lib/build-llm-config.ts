@@ -15,14 +15,25 @@ function platformEnvKey(provider: string): string | undefined {
   }
 }
 
-const PLATFORM_PROVIDER = (process.env.PLATFORM_LLM_PROVIDER || 'openrouter') as LLMConfig['provider'];
+function normalizeOllamaBase(url: string): string {
+  let base = (url || 'http://localhost:11434').replace(/\/$/, '');
+  if (!base.endsWith('/v1')) base = base + '/v1';
+  return base;
+}
+
+const PLATFORM_PROVIDER = (process.env.PLATFORM_LLM_PROVIDER ||
+  process.env.DEFAULT_LLM_PROVIDER ||
+  'openrouter') as LLMConfig['provider'];
 const PLATFORM_MODEL =
   process.env.PLATFORM_LLM_MODEL ||
+  process.env.DEFAULT_LLM_MODEL ||
   (PLATFORM_PROVIDER === 'google'
     ? 'gemini-2.5-flash'
     : PLATFORM_PROVIDER === 'openai'
       ? 'gpt-4.1'
-      : 'anthropic/claude-sonnet-4');
+      : PLATFORM_PROVIDER === 'ollama'
+        ? 'llama3.3'
+        : 'anthropic/claude-sonnet-4');
 
 export function allowUserByok(): boolean {
   return process.env.ALLOW_USER_BYOK === '1' || process.env.ALLOW_USER_BYOK === 'true';
@@ -50,8 +61,10 @@ export function buildLLMConfig(s?: any): LLMConfig {
   if (provider === 'ollama' && ollamaOk) {
     return {
       provider: 'ollama',
-      baseURL: `${(process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/$/, '')}/v1`,
-      model: process.env.OLLAMA_MODEL || 'llama3.3',
+      baseURL: normalizeOllamaBase(
+        process.env.OLLAMA_BASE_URL || process.env.DEFAULT_OLLAMA_URL || 'http://localhost:11434'
+      ),
+      model: process.env.OLLAMA_MODEL || PLATFORM_MODEL || 'llama3.3',
       apiKey: 'ollama',
     };
   }
@@ -99,8 +112,10 @@ function fromClientSettings(s: any, ollamaOk: boolean): LLMConfig {
       }
       return {
         provider: 'ollama',
-        baseURL: `${(s.ollamaBaseURL || 'http://localhost:11434').replace(/\/$/, '')}/v1`,
-        model: s.ollamaModel || 'llama3.3',
+        baseURL: normalizeOllamaBase(
+          s.ollamaBaseURL || process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
+        ),
+        model: s.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.3',
         apiKey: 'ollama',
       };
     case 'openai':
