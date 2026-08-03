@@ -11,6 +11,8 @@ import { FileTree } from '@/components/editor/FileTree';
 import { TEMPLATES } from '@/lib/templates';
 import { WorkspacePanel } from '@/components/workspace/WorkspacePanel';
 import { getActiveWorkspaceId } from '@/lib/workspace-store';
+import { useI18n } from '@/lib/i18n/context';
+import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -22,13 +24,17 @@ function isCreateIntent(text: string): boolean {
   return (
     lower.includes('создай') ||
     lower.includes('сделай') ||
+    lower.includes('create') ||
+    lower.includes('build') ||
     lower.includes('приложение') ||
+    lower.includes('app') ||
     lower.includes('сайт') ||
     lower.includes('landing') ||
     lower.includes('dashboard') ||
-    lower.includes('дашборд') ||
     lower.includes('saas') ||
-    lower.includes('сгенерируй')
+    lower.includes('сгенерируй') ||
+    lower.includes('създай') ||
+    lower.includes('створи')
   );
 }
 
@@ -37,22 +43,19 @@ function isEditIntent(text: string): boolean {
   return (
     lower.includes('измени') ||
     lower.includes('поменяй') ||
+    lower.includes('edit') ||
+    lower.includes('change') ||
     lower.includes('добавь') ||
+    lower.includes('add') ||
     lower.includes('убери') ||
-    lower.includes('цвет') ||
-    lower.includes('круглее') ||
     lower.includes('исправ') ||
     lower.includes('стиль')
   );
 }
 
 export default function OmniDevPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Привет! OmniDev: создай приложение, правь, шаринг, GitHub, команда.',
-    },
-  ]);
+  const { d } = useI18n();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -61,6 +64,14 @@ export default function OmniDevPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const runner = useProjectRunner();
   const prevStatus = useRef(runner.status);
+  const greeted = useRef(false);
+
+  useEffect(() => {
+    if (!greeted.current) {
+      setMessages([{ role: 'assistant', content: d.greeting }]);
+      greeted.current = true;
+    }
+  }, [d.greeting]);
 
   useEffect(() => {
     if (getActiveWorkspaceId()) setWsLabel('team');
@@ -76,7 +87,7 @@ export default function OmniDevPage() {
         ...prev,
         {
           role: 'assistant',
-          content: `✅ ${runner.description || 'Готово!'}\n\nПревью справа. Правь / Шаринг / GitHub.`,
+          content: `✅ ${runner.description || d.statusReady}!\n\n${d.readyPreview}`,
         },
       ]);
     }
@@ -87,7 +98,7 @@ export default function OmniDevPage() {
       ]);
     }
     prevStatus.current = runner.status;
-  }, [runner.status, runner.previewUrl, runner.error, runner.description]);
+  }, [runner.status, runner.previewUrl, runner.error, runner.description, d]);
 
   const busy = ['generating', 'booting', 'installing', 'starting', 'healing', 'editing'].includes(
     runner.status
@@ -95,24 +106,24 @@ export default function OmniDevPage() {
 
   const statusLabel =
     runner.status === 'generating'
-      ? 'Генерирую...'
+      ? d.statusGenerating
       : runner.status === 'booting'
-        ? 'WebContainer...'
+        ? d.statusBooting
         : runner.status === 'installing'
-          ? 'npm install...'
+          ? d.statusInstalling
           : runner.status === 'starting'
-            ? 'dev server...'
+            ? d.statusStarting
             : runner.status === 'healing'
-              ? 'Исправляю...'
+              ? d.statusHealing
               : runner.status === 'editing'
-                ? 'Правки...'
+                ? d.statusEditing
                 : runner.status === 'ready'
-                  ? 'Готово'
+                  ? d.statusReady
                   : runner.status === 'error'
-                    ? 'Ошибка'
+                    ? d.statusError
                     : isLoading
-                      ? '...'
-                      : 'Готов';
+                      ? d.statusBusy
+                      : d.statusReady;
 
   async function sendMessage() {
     if (!input.trim() || isLoading || busy) return;
@@ -123,12 +134,12 @@ export default function OmniDevPage() {
     try {
       const hasProject = Object.keys(runner.files).length > 0;
       if (isCreateIntent(userMsg) && !hasProject) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Генерирую...' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: d.generating }]);
         await runner.generateAndRun(userMsg);
       } else if (hasProject && (isEditIntent(userMsg) || !isCreateIntent(userMsg))) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Правки...' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: d.editing }]);
         await runner.editProject(userMsg);
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Готово (HMR).' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: d.doneHmr }]);
       } else if (isCreateIntent(userMsg)) {
         await runner.generateAndRun(userMsg);
       } else {
@@ -142,11 +153,21 @@ export default function OmniDevPage() {
         setMessages((prev) => [...prev, { role: 'assistant', content: data.reply || 'OK' }]);
       }
     } catch (err: any) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Ошибка: ${err.message}` }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `${d.errorPrefix}: ${err.message}` },
+      ]);
     } finally {
       setIsLoading(false);
     }
   }
+
+  const tplLabels: Record<string, string> = {
+    landing: d.templates.landing,
+    saas: d.templates.saas,
+    dashboard: d.templates.dashboard,
+    portfolio: d.templates.portfolio,
+  };
 
   return (
     <div className="flex h-screen bg-zinc-950 text-zinc-100">
@@ -157,11 +178,12 @@ export default function OmniDevPage() {
               O
             </div>
             <div className="min-w-0">
-              <h1 className="font-semibold text-lg leading-none">OmniDev</h1>
+              <h1 className="font-semibold text-lg leading-none">{d.appName}</h1>
               <p className="text-xs text-zinc-500 mt-0.5 truncate">{statusLabel}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            <LanguageSwitcher compact />
             <ScreenshotUpload
               onGenerated={async (files, description) => {
                 setMessages((prev) => [
@@ -178,7 +200,7 @@ export default function OmniDevPage() {
                   onClick={() => setShowExport(true)}
                   className="text-xs text-zinc-400 hover:text-violet-400"
                 >
-                  GitHub
+                  {d.github}
                 </button>
               </>
             )}
@@ -187,19 +209,16 @@ export default function OmniDevPage() {
               onClick={() => setShowWorkspace(true)}
               className="text-xs text-zinc-400 hover:text-violet-400"
             >
-              Команда
+              {d.team}
             </button>
-            <a href="/workspace" className="text-xs text-zinc-500 hover:text-violet-400 hidden sm:inline">
-              /ws
-            </a>
             <a href="/projects" className="text-xs text-zinc-400 hover:text-violet-400">
-              Проекты
+              {d.projects}
             </a>
             <a href="/settings" className="text-xs text-zinc-400 hover:text-violet-400">
-              Настройки
+              {d.settings}
             </a>
             <a href="/admin" className="text-xs text-zinc-600 hover:text-amber-400" title="ADMIN_SECRET">
-              Admin
+              {d.admin}
             </a>
             <SignInButton />
           </div>
@@ -235,20 +254,24 @@ export default function OmniDevPage() {
                   onClick={() => setInput(tpl.seedPrompt)}
                   className="text-[11px] px-2.5 py-1 rounded-lg border border-zinc-800 text-zinc-400 hover:border-violet-500/50 hover:text-violet-300"
                 >
-                  {tpl.titleRu}
+                  {tplLabels[tpl.id] || tpl.titleRu}
                 </button>
               ))}
             </div>
           )}
           {wsLabel && (
-            <p className="text-[11px] text-violet-400/80 mb-2">Команда: {wsLabel}</p>
+            <p className="text-[11px] text-violet-400/80 mb-2">
+              {d.team}: {wsLabel}
+            </p>
           )}
           <div className="flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-              placeholder={Object.keys(runner.files).length ? 'Правка...' : 'Создай приложение...'}
+              placeholder={
+                Object.keys(runner.files).length ? d.placeholderEdit : d.placeholderCreate
+              }
               className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               disabled={isLoading || busy}
             />
@@ -271,7 +294,7 @@ export default function OmniDevPage() {
             <div className="w-3 h-3 rounded-full bg-green-500/80" />
           </div>
           <div className="flex-1 text-center text-xs text-zinc-500 truncate">
-            {runner.previewUrl || 'Превью'}
+            {runner.previewUrl || d.preview}
           </div>
         </div>
         <div className="flex-1 relative flex">
@@ -300,7 +323,7 @@ export default function OmniDevPage() {
               <div className="absolute inset-0 flex items-center justify-center text-zinc-600">
                 <div className="text-center">
                   <div className="text-5xl mb-4 opacity-30">◈</div>
-                  <p className="text-sm">Создай или загрузи скрин</p>
+                  <p className="text-sm">{d.previewEmpty}</p>
                 </div>
               </div>
             )}
