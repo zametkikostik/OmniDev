@@ -1,17 +1,24 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Web3Providers } from '@/components/wallet/Providers';
+import { I18nProvider } from '@/lib/i18n/context';
 
 export const metadata: Metadata = {
   title: 'OmniDev — AI Full-Stack Builder',
-  description: 'Создавай полноценные приложения с помощью ИИ.',
+  description: 'Build full-stack apps with AI. Autonomous. Instant.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="ru">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <Web3Providers>{children}</Web3Providers>
+        <I18nProvider>
+          <Web3Providers>{children}</Web3Providers>
+        </I18nProvider>
       </body>
     </html>
   );
