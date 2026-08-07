@@ -53,8 +53,23 @@ function isEditIntent(text: string): boolean {
   );
 }
 
+/** Same HTML on server and first client paint */
+function BootShell() {
+  return (
+    <div className="flex h-screen bg-zinc-950 text-zinc-100 items-center justify-center">
+      <div className="text-center">
+        <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center font-bold">
+          O
+        </div>
+        <p className="text-sm text-zinc-500">OmniDev</p>
+      </div>
+    </div>
+  );
+}
+
 export default function OmniDevPage() {
   const { d, hydrated } = useI18n();
+  const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -66,12 +81,15 @@ export default function OmniDevPage() {
   const prevStatus = useRef(runner.status);
   const greeted = useRef(false);
 
-  // Only after client hydrate — avoids SSR/client text mismatch
   useEffect(() => {
-    if (!hydrated || greeted.current) return;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !hydrated || greeted.current) return;
     greeted.current = true;
     setMessages([{ role: 'assistant', content: d.greeting }]);
-  }, [hydrated, d.greeting]);
+  }, [mounted, hydrated, d.greeting]);
 
   useEffect(() => {
     if (getActiveWorkspaceId()) setWsLabel('team');
@@ -169,6 +187,11 @@ export default function OmniDevPage() {
     portfolio: d.templates.portfolio,
   };
 
+  // CRITICAL: no translated strings until client mounted
+  if (!mounted) {
+    return <BootShell />;
+  }
+
   return (
     <div className="flex h-screen bg-zinc-950 text-zinc-100">
       <div className="w-full md:w-[420px] flex flex-col border-r border-zinc-800">
@@ -178,12 +201,8 @@ export default function OmniDevPage() {
               O
             </div>
             <div className="min-w-0">
-              <h1 className="font-semibold text-lg leading-none" suppressHydrationWarning>
-                {d.appName}
-              </h1>
-              <p className="text-xs text-zinc-500 mt-0.5 truncate" suppressHydrationWarning>
-                {statusLabel}
-              </p>
+              <h1 className="font-semibold text-lg leading-none">{d.appName}</h1>
+              <p className="text-xs text-zinc-500 mt-0.5 truncate">{statusLabel}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -242,9 +261,7 @@ export default function OmniDevPage() {
           ))}
           {(isLoading || busy) && (
             <div className="flex justify-start">
-              <div className="bg-zinc-800 rounded-2xl px-4 py-3 text-sm text-zinc-400" suppressHydrationWarning>
-                {statusLabel}
-              </div>
+              <div className="bg-zinc-800 rounded-2xl px-4 py-3 text-sm text-zinc-400">{statusLabel}</div>
             </div>
           )}
           <div ref={bottomRef} />
@@ -280,7 +297,6 @@ export default function OmniDevPage() {
               }
               className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               disabled={isLoading || busy}
-              suppressHydrationWarning
             />
             <button
               onClick={sendMessage}
@@ -330,9 +346,7 @@ export default function OmniDevPage() {
               <div className="absolute inset-0 flex items-center justify-center text-zinc-600">
                 <div className="text-center">
                   <div className="text-5xl mb-4 opacity-30">◈</div>
-                  <p className="text-sm" suppressHydrationWarning>
-                    {d.previewEmpty}
-                  </p>
+                  <p className="text-sm">{d.previewEmpty}</p>
                 </div>
               </div>
             )}
