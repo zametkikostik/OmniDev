@@ -13,17 +13,22 @@ import { DICTS, Locale, t as getDict, type Dict, LOCALES } from './translations'
 
 const STORAGE_KEY = 'omnidev_locale_v1';
 
+/** Always the same on server and first client paint — avoids hydration mismatch */
+const SSR_LOCALE: Locale = 'en';
+
 type I18nCtx = {
   locale: Locale;
   setLocale: (l: Locale) => void;
   d: Dict;
   locales: typeof LOCALES;
+  /** false until client reads localStorage / navigator */
+  hydrated: boolean;
 };
 
 const Ctx = createContext<I18nCtx | null>(null);
 
 function detectLocale(): Locale {
-  if (typeof window === 'undefined') return 'en';
+  if (typeof window === 'undefined') return SSR_LOCALE;
   try {
     const saved = localStorage.getItem(STORAGE_KEY) as Locale | null;
     if (saved && DICTS[saved]) return saved;
@@ -37,12 +42,12 @@ function detectLocale(): Locale {
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('en');
-  const [ready, setReady] = useState(false);
+  const [locale, setLocaleState] = useState<Locale>(SSR_LOCALE);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setLocaleState(detectLocale());
-    setReady(true);
+    setHydrated(true);
   }, []);
 
   const setLocale = useCallback((l: Locale) => {
@@ -56,10 +61,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (ready && typeof document !== 'undefined') {
+    if (hydrated && typeof document !== 'undefined') {
       document.documentElement.lang = locale;
     }
-  }, [locale, ready]);
+  }, [locale, hydrated]);
 
   const value = useMemo(
     () => ({
@@ -67,8 +72,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setLocale,
       d: getDict(locale),
       locales: LOCALES,
+      hydrated,
     }),
-    [locale, setLocale]
+    [locale, setLocale, hydrated]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -78,10 +84,11 @@ export function useI18n() {
   const ctx = useContext(Ctx);
   if (!ctx) {
     return {
-      locale: 'en' as Locale,
+      locale: SSR_LOCALE,
       setLocale: (_: Locale) => {},
-      d: DICTS.en,
+      d: DICTS[SSR_LOCALE],
       locales: LOCALES,
+      hydrated: false,
     };
   }
   return ctx;
