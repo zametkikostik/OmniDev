@@ -11,5 +11,5 @@
     "test:e2e": "npm run test:e2e --workspace=@omnidev/web",
     "health": "curl -s http://localhost:3000/api/health"
   },
-  "engines": { "node": ">=20.0.0" }
+  "engines": { "node": ">=18.18.0" }
 }
