@@ -28,7 +28,7 @@ const PLATFORM_MODEL =
   process.env.PLATFORM_LLM_MODEL ||
   process.env.DEFAULT_LLM_MODEL ||
   (PLATFORM_PROVIDER === 'google'
-    ? 'gemini-2.5-flash'
+    ? 'gemini-3.6-flash'
     : PLATFORM_PROVIDER === 'openai'
       ? 'gpt-4.1'
       : PLATFORM_PROVIDER === 'ollama'
@@ -74,7 +74,7 @@ export function buildLLMConfig(s?: any): LLMConfig {
     cfg = {
       provider: 'google',
       apiKey: platformEnvKey('google'),
-      model: process.env.PLATFORM_LLM_MODEL || 'gemini-2.5-flash',
+      model: process.env.PLATFORM_LLM_MODEL || 'gemini-3.6-flash',
       baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
     };
   } else if (provider === 'openai') {
@@ -128,7 +128,7 @@ function fromClientSettings(s: any, ollamaOk: boolean): LLMConfig {
       return {
         provider: 'google',
         apiKey: s.googleApiKey || platformEnvKey('google'),
-        model: s.googleModel || 'gemini-2.5-flash',
+        model: s.googleModel || 'gemini-3.6-flash',
         baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
       };
     case 'custom':
